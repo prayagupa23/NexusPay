@@ -160,7 +160,7 @@ class _AnimatedAppTitleState extends State<AnimatedAppTitle> {
   }
 }
 
-// Quick Actions wrapped in greyish container to simulate the lower background
+// Quick Actions wrapped in greyish container to simulate the lower background (COMMENT IT OUT LATER)
 class _QuickActionsSection extends StatelessWidget {
   const _QuickActionsSection();
 
@@ -691,3 +691,4 @@ class NetworkTrustPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
