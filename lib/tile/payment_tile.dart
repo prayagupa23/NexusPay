@@ -1,5 +1,8 @@
+// P A Y M E N T  T I L E 
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+
+// N O T   Y E T   I M P L E M E N T E D 
 
 class PaymentTile extends StatelessWidget {
   final String title;

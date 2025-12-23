@@ -18,14 +18,14 @@ class ContactDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.primaryBg,
 
-      /// 🔹 CUSTOM GPay-STYLE APP BAR (FIXED POSITION)
+      // C U S T O M  A P P  B A R 
       body: Column(
         children: [
-          // TOP APP BAR
+          // T O P  A P P  B A R
           Container(
             padding: EdgeInsets.fromLTRB(
               10,
-              statusBarHeight + 24, // 👈 THIS PUSHES APPBAR DOWN
+              statusBarHeight + 24,
               10,
               18,
             ),
@@ -78,7 +78,7 @@ class ContactDetailScreen extends StatelessWidget {
             ),
           ),
 
-          /// 🔹 TRANSACTIONS AREA (EMPTY FOR NOW)
+          // TRANSACTIONS AREA (EMPTY FOR NOW)
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -88,7 +88,7 @@ class ContactDetailScreen extends StatelessWidget {
         ],
       ),
 
-      /// 🔹 GPay STYLE BOTTOM BAR
+      // B O T T O M  B A R
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.fromLTRB(12, 18, 12, 18),
@@ -104,7 +104,7 @@ class ContactDetailScreen extends StatelessWidget {
           ),
           child: Row(
             children: [
-              /// PAY BUTTON
+              // P A Y  B U T T O N
               Container(
                 height: 44,
                 padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -129,7 +129,7 @@ class ContactDetailScreen extends StatelessWidget {
 
               const SizedBox(width: 10),
 
-              /// MESSAGE FIELD
+              //  M E S S A G E  F I E L D
               Expanded(
                 child: Container(
                   height: 44,
