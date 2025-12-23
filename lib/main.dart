@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:heisenbug/screens/feature_carousel.dart';
 
 void main() {
   runApp(const MyApp());
+
+  SystemChrome.setEnabledSystemUIMode(
+    SystemUiMode.immersiveSticky,
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -14,10 +19,10 @@ class MyApp extends StatelessWidget {
       title: 'Heisenbug',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        fontFamily: 'Inter',
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF000000),
         primaryColor: const Color(0xFF2563EB),
-        fontFamily: 'Inter',
         textTheme: const TextTheme(
           displayLarge: TextStyle(color: Color(0xFFFFFFFF)),
           displayMedium: TextStyle(color: Color(0xFFFFFFFF)),
