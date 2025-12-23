@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:heisenbug/screens/account_selection_screen.dart';
 import '../theme/app_colors.dart';
+import '../tile/avatar_tile.dart';
+import 'account_selection_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
-  const PaymentScreen({super.key});
+  final String name;
+  final String upiId;
+
+  const PaymentScreen({
+    super.key,
+    required this.name,
+    required this.upiId,
+  });
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -31,73 +39,86 @@ class _PaymentScreenState extends State<PaymentScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
-            _buildPaymentDetails(),
+            _header(),
+            _details(),
             const Spacer(),
-            _buildNumpad(),
+            _numpad(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _header() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           IconButton(
-            icon: const Icon(Icons.close, color: AppColors.primaryText, size: 28),
-            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close,
+                color: AppColors.primaryText, size: 28),
+            onPressed: () => Navigator.pop(context),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPaymentDetails() {
+  Widget _details() {
     return Column(
       children: [
-        const CircleAvatar(
-          radius: 30,
-          backgroundColor: AppColors.secondarySurface,
-          child: Icon(Icons.person, color: AppColors.primaryText, size: 30),
+        // Reused ContactAvatar — colorful background + white letter
+        ContactAvatar(
+          name: widget.name,
+          // No onTap needed here (or pass null if required)
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Paying Deep Bandekar',
-          style: TextStyle(color: AppColors.primaryText, fontSize: 20, fontWeight: FontWeight.bold),
+        const SizedBox(height: 14),
+        Text(
+          "Paying ${widget.name}",
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primaryText,
+          ),
         ),
         const SizedBox(height: 4),
-        const Text(
-          'UPI ID: 123456789@fam',
-          style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
-        ),
-        const SizedBox(height: 24),
         Text(
-          '₹${_amount.isEmpty ? '0' : _amount}',
-          style: const TextStyle(color: AppColors.primaryText, fontSize: 48, fontWeight: FontWeight.bold),
+          widget.upiId,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.secondaryText,
+          ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
+        Text(
+          "₹${_amount.isEmpty ? '0' : _amount}",
+          style: const TextStyle(
+            fontSize: 48,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryText,
+          ),
+        ),
+        const SizedBox(height: 8),
         TextButton.icon(
-          icon: const Icon(Icons.edit, color: AppColors.primaryBlue, size: 16),
-          label: const Text('Add note', style: TextStyle(color: AppColors.primaryBlue)),
           onPressed: () {},
+          icon: const Icon(Icons.edit,
+              size: 16, color: AppColors.primaryBlue),
+          label: const Text(
+            "Add note",
+            style: TextStyle(color: AppColors.primaryBlue),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildNumpad() {
+  Widget _numpad() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
         color: AppColors.darkSurface,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
       ),
       child: Column(
         children: [
@@ -105,47 +126,63 @@ class _PaymentScreenState extends State<PaymentScreen> {
             crossAxisCount: 3,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.5,
-            children: List.generate(12, (index) {
-              String text;
-              if (index < 9) {
-                text = (index + 1).toString();
-              } else if (index == 9) {
-                text = '.';
-              } else if (index == 10) {
-                text = '0';
+            childAspectRatio: 1.4,
+            children: List.generate(12, (i) {
+              String key;
+              if (i < 9) {
+                key = '${i + 1}';
+              } else if (i == 9) {
+                key = '.';
+              } else if (i == 10) {
+                key = '0';
               } else {
-                text = 'backspace';
+                key = 'backspace';
               }
 
               return InkWell(
-                onTap: () => _onKeyPress(text),
+                onTap: () => _onKeyPress(key),
                 child: Center(
-                  child: text == 'backspace'
-                      ? const Icon(Icons.backspace_outlined, color: AppColors.primaryText)
-                      : Text(text, style: const TextStyle(color: AppColors.primaryText, fontSize: 24)),
+                  child: key == 'backspace'
+                      ? const Icon(Icons.backspace_outlined,
+                      color: AppColors.primaryText)
+                      : Text(
+                    key,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      color: AppColors.primaryText,
+                    ),
+                  ),
                 ),
               );
             }),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryBlue,
-              minimumSize: const Size(double.infinity, 50),
+              minimumSize: const Size(double.infinity, 52),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
-            onPressed: () {
-              if (_amount.isNotEmpty) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AccountSelectionScreen(amount: _amount)),
-                );
-              }
+            onPressed: _amount.isEmpty
+                ? null
+                : () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AccountSelectionScreen(amount: _amount),
+                ),
+              );
             },
-            child: const Text('Proceed', style: TextStyle(fontSize: 18, color: AppColors.primaryText)),
+            child: const Text(
+              "Proceed",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primaryText,
+              ),
+            ),
           ),
         ],
       ),

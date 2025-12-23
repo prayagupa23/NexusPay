@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:heisenbug/screens/pay_anyone_screen.dart';
 import '../theme/app_colors.dart';
 import 'contact_detail_screen.dart';
+import '../tile/avatar_tile.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -97,35 +99,46 @@ class AnimatedAppTitle extends StatefulWidget {
 
 class _AnimatedAppTitleState extends State<AnimatedAppTitle> {
   bool showStatus = false;
+  bool hasAutoRun = false;
 
   @override
   void initState() {
     super.initState();
-    _runOnce();
+    _autoShowOnce();
   }
 
-  void _runOnce() async {
+  // Auto-run only ONCE when screen opens
+  void _autoShowOnce() async {
+    if (hasAutoRun) return;
+
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
+
     setState(() => showStatus = true);
+
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
+
     setState(() => showStatus = false);
+    hasAutoRun = true;
   }
 
-  void _restart() {
+  // 🔹 Run again ONLY when user taps
+  void _onTap() async {
     setState(() => showStatus = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => showStatus = false);
-    });
+
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+
+    setState(() => showStatus = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _restart,
+      onTap: _onTap,
       child: AnimatedSwitcher(
-        duration: 450.ms,
+        duration: const Duration(milliseconds: 450),
         transitionBuilder: (child, animation) {
           return SlideTransition(
             position: Tween(
@@ -135,30 +148,35 @@ class _AnimatedAppTitleState extends State<AnimatedAppTitle> {
             child: FadeTransition(opacity: animation, child: child),
           );
         },
-        child: showStatus
-            ? const Text(
-                "Last security check · 3 mins ago",
-                key: ValueKey("status"),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.secondaryText,
-                ),
-              )
-            : const Text(
-                "App Name",
-                key: ValueKey("app"),
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primaryText,
-                  letterSpacing: -0.6,
-                ),
-              ),
+        child: FittedBox(
+          key: ValueKey(showStatus),
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.center,
+          child: Text(
+            showStatus
+                ? "Last security check · 3 mins ago"
+                : "App Name",
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: showStatus
+                ? const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: AppColors.secondaryText,
+            )
+                : const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primaryText,
+              letterSpacing: -0.6,
+            ),
+          ),
+        ),
       ),
     );
   }
 }
+
 
 // Quick Actions wrapped in greyish container to simulate the lower background (COMMENT IT OUT LATER)
 class _QuickActionsSection extends StatelessWidget {
@@ -179,55 +197,89 @@ class _QuickActionsSection extends StatelessWidget {
   }
 }
 
-// Q U I C K  A C T I O N
 class _QuickActions extends StatelessWidget {
   const _QuickActions();
 
   @override
   Widget build(BuildContext context) {
     final actions = [
-      {"icon": Icons.qr_code_scanner_rounded, "label": "Scan any\nQR code"},
-      {"icon": Icons.payment_rounded, "label": "Pay\nanyone"},
-      {"icon": Icons.location_on_rounded, "label": "Heat\nMaps"},
-      {"icon": Icons.security_rounded, "label": "Fraud\nDetect"},
+      {
+        "icon": Icons.qr_code_scanner_rounded,
+        "label": "Scan any\nQR code",
+        "onTap": () {
+          // TODO: QR Screen
+        },
+      },
+      {
+        "icon": Icons.payment_rounded,
+        "label": "Pay\nanyone",
+        "onTap": () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const PayScreen(),
+            ),
+          );
+        },
+      },
+      {
+        "icon": Icons.location_on_rounded,
+        "label": "Heat\nMaps",
+        "onTap": () {
+          // TODO: Heat map screen
+        },
+      },
+      {
+        "icon": Icons.security_rounded,
+        "label": "Fraud\nDetect",
+        "onTap": () {
+          // TODO: Fraud detect screen
+        },
+      },
     ];
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: actions.asMap().entries.map((e) {
-        return Column(
-          children: [
-            Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBlue,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Icon(
-                    e.value["icon"] as IconData,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                )
-                .animate(delay: (e.key * 120).ms)
-                .scale(begin: const Offset(0.85, 0.85)),
-            const SizedBox(height: 8),
-            Text(
-              e.value["label"] as String,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primaryText,
+        final item = e.value;
+
+        return GestureDetector(
+          onTap: item["onTap"] as VoidCallback?,
+          child: Column(
+            children: [
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(
+                  item["icon"] as IconData,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              )
+                  .animate(delay: (e.key * 120).ms)
+                  .scale(begin: const Offset(0.85, 0.85)),
+              const SizedBox(height: 8),
+              Text(
+                item["label"] as String,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryText,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       }).toList(),
     );
   }
 }
+
 
 // A L E R T  C A R D
 
@@ -260,27 +312,21 @@ class _AlertCard extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Unverified user is attempting a transaction.",
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.secondaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+                  children: const [
                     Text(
-                      "Review the profile before proceeding.",
+                      "Verification \nRequired ! ",
                       style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.secondaryText.withOpacity(0.8),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryText,
+                        height: 1.3,
                       ),
                     ),
+                    SizedBox(height: 4),
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               ElevatedButton(
                 onPressed: () {},
                 style: ElevatedButton.styleFrom(
@@ -289,8 +335,8 @@ class _AlertCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
+                    horizontal: 14,
+                    vertical: 12,
                   ),
                 ),
                 child: const Text(
@@ -332,55 +378,77 @@ class _TrustedContacts extends StatelessWidget {
       {"name": "Kunal Jain", "upi": "kunal@upi"},
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
-            Text(
-              "Trusted Contacts",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primaryText,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Trusted Contacts",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryText,
+                ),
               ),
-            ),
-            Text(
-              "View all",
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.primaryBlue,
+              Text(
+                "View all",
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.primaryBlue,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: contacts.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
-            mainAxisSpacing: 18,
-            crossAxisSpacing: 18,
+            ],
           ),
-          itemBuilder: (context, index) {
-            final contact = contacts[index];
-            return _ContactAvatar(
-              name: contact["name"]!,
-              upiId: contact["upi"]!,
-            );
-          },
-        ),
-      ],
+          const SizedBox(height: 16),
+
+          // Safe Grid — NO OVERFLOW EVER
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const int columns = 4;
+              const double spacing = 20.0;
+              final double totalSpacing = spacing * (columns - 1);
+              final double itemWidth = (constraints.maxWidth - totalSpacing) / columns;
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: 20,
+                children: contacts.map((c) {
+                  return SizedBox(
+                    width: itemWidth,
+                    child: ContactAvatar(
+                      name: c["name"]!,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ContactDetailScreen(
+                              name: c["name"]!,
+                              upiId: c["upi"]!,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
     );
   }
 }
 
-class _ContactAvatar extends StatelessWidget {
+
+
+/*class _ContactAvatar extends StatelessWidget {
   final String name;
   final String upiId;
 
@@ -417,7 +485,7 @@ class _ContactAvatar extends StatelessWidget {
       ),
     );
   }
-}
+}*/
 
 
 // B O T T O M  N A V
@@ -471,7 +539,7 @@ class _BottomNavState extends State<BottomNav> {
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: const BoxDecoration(
         color: AppColors.secondarySurface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
