@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'payment_success_screen.dart';
 
 class PinEntryScreen extends StatefulWidget {
   final String amount;
@@ -20,8 +21,33 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
         if (_pin.isNotEmpty) {
           _pin = _pin.substring(0, _pin.length - 1);
         }
+      } else if (value == 'submit') {
+        if (_pin.length == 4) {
+          // Navigate to success screen when PIN is complete and submit is pressed
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PaymentSuccessScreen(
+                amount: widget.amount,
+                recipient: widget.bankName,
+                transactionId: 'TXN${DateTime.now().millisecondsSinceEpoch}',
+                timestamp: DateTime.now(),
+              ),
+            ),
+          );
+        }
       } else if (_pin.length < 4) {
         _pin += value;
+        
+        // Auto-submit when 4 digits are entered
+        if (_pin.length == 4) {
+          // Small delay to show the last digit
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) {
+              _onKeyPress('submit');
+            }
+          });
+        }
       }
     });
   }
