@@ -29,7 +29,6 @@ class ContactDetailScreen extends StatelessWidget {
               10,
               18,
             ),
-            color: AppColors.secondarySurface,
             child: Row(
               children: [
                 const BackButton(color: AppColors.primaryText),
