@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import '../tile/avatar_tile.dart';
+import '../tile/avatar_tile.dart'; // for avatarColors
 import 'account_selection_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -26,10 +26,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
         if (_amount.isNotEmpty) {
           _amount = _amount.substring(0, _amount.length - 1);
         }
-      } else if (_amount.length < 6) {
+      } else if (_amount.length < 8) {
+        if (_amount.isEmpty && value == '.') return;
         _amount += value;
       }
     });
+  }
+
+  // Same avatar color logic as ContactAvatar
+  Color _getAvatarColor() {
+    final int hash = widget.name.toLowerCase().hashCode;
+    return ContactAvatar.avatarColors[
+    hash.abs() % ContactAvatar.avatarColors.length
+    ];
   }
 
   @override
@@ -49,6 +58,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  // Close button
   Widget _header() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -56,8 +66,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           IconButton(
-            icon: const Icon(Icons.close,
-                color: AppColors.primaryText, size: 28),
+            icon: const Icon(
+              Icons.close,
+              color: AppColors.primaryText,
+              size: 28,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ],
@@ -65,15 +78,28 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  // Avatar  details
   Widget _details() {
+    final avatarColor = _getAvatarColor();
+
     return Column(
       children: [
-        // Reused ContactAvatar — colorful background + white letter
-        ContactAvatar(
-          name: widget.name,
-          // No onTap needed here (or pass null if required)
+        //  AVATAR
+        CircleAvatar(
+          radius: 36,
+          backgroundColor: avatarColor,
+          child: Text(
+            widget.name[0].toUpperCase(),
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
         ),
-        const SizedBox(height: 14),
+
+        const SizedBox(height: 16),
+
         Text(
           "Paying ${widget.name}",
           style: const TextStyle(
@@ -82,7 +108,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
             color: AppColors.primaryText,
           ),
         ),
+
         const SizedBox(height: 4),
+
         Text(
           widget.upiId,
           style: const TextStyle(
@@ -90,7 +118,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
             color: AppColors.secondaryText,
           ),
         ),
-        const SizedBox(height: 18),
+
+        const SizedBox(height: 20),
+
         Text(
           "₹${_amount.isEmpty ? '0' : _amount}",
           style: const TextStyle(
@@ -99,11 +129,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
             color: AppColors.primaryText,
           ),
         ),
+
         const SizedBox(height: 8),
+
         TextButton.icon(
           onPressed: () {},
-          icon: const Icon(Icons.edit,
-              size: 16, color: AppColors.primaryBlue),
+          icon: const Icon(
+            Icons.edit,
+            size: 16,
+            color: AppColors.primaryBlue,
+          ),
           label: const Text(
             "Add note",
             style: TextStyle(color: AppColors.primaryBlue),
@@ -113,12 +148,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  // 🔢 GPay-style numpad + proceed
   Widget _numpad() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
         color: AppColors.darkSurface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
       ),
       child: Column(
         children: [
@@ -141,10 +176,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
               return InkWell(
                 onTap: () => _onKeyPress(key),
+                borderRadius: BorderRadius.circular(12),
                 child: Center(
                   child: key == 'backspace'
-                      ? const Icon(Icons.backspace_outlined,
-                      color: AppColors.primaryText)
+                      ? const Icon(
+                    Icons.backspace_outlined,
+                    color: AppColors.primaryText,
+                  )
                       : Text(
                     key,
                     style: const TextStyle(
@@ -156,7 +194,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
               );
             }),
           ),
+
           const SizedBox(height: 14),
+
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryBlue,
@@ -164,14 +204,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
+              elevation: 0,
             ),
-            onPressed: _amount.isEmpty
+            onPressed: _amount.isEmpty || _amount == "."
                 ? null
                 : () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => AccountSelectionScreen(amount: _amount),
+                  builder: (_) => AccountSelectionScreen(
+                    name: widget.name,
+                    upiId: widget.upiId,
+                    amount: _amount,
+                  ),
                 ),
               );
             },

@@ -404,7 +404,7 @@ class _TrustedContacts extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           // Safe Grid — NO OVERFLOW EVER
           LayoutBuilder(

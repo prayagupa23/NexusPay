@@ -5,8 +5,14 @@ import 'payment_success_screen.dart';
 class PinEntryScreen extends StatefulWidget {
   final String amount;
   final String bankName;
+  final String recipientName;
 
-  const PinEntryScreen({super.key, required this.amount, required this.bankName});
+  const PinEntryScreen({
+    super.key,
+    required this.amount,
+    required this.bankName,
+    required this.recipientName,
+  });
 
   @override
   State<PinEntryScreen> createState() => _PinEntryScreenState();
@@ -23,13 +29,12 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
         }
       } else if (value == 'submit') {
         if (_pin.length == 4) {
-          // Navigate to success screen when PIN is complete and submit is pressed
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => PaymentSuccessScreen(
+              builder: (_) => PaymentSuccessScreen(
                 amount: widget.amount,
-                recipient: widget.bankName,
+                recipient: widget.recipientName,
                 transactionId: 'TXN${DateTime.now().millisecondsSinceEpoch}',
                 timestamp: DateTime.now(),
               ),
@@ -38,19 +43,11 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
         }
       } else if (_pin.length < 4) {
         _pin += value;
-        
-        // Auto-submit when 4 digits are entered
-        if (_pin.length == 4) {
-          // Small delay to show the last digit
-          Future.delayed(const Duration(milliseconds: 100), () {
-            if (mounted) {
-              _onKeyPress('submit');
-            }
-          });
-        }
       }
     });
   }
+
+  bool get _isPinComplete => _pin.length == 4;
 
   @override
   Widget build(BuildContext context) {
@@ -61,15 +58,22 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.primaryText),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.pop(context),
         ),
-        title: Text(widget.bankName.toUpperCase(), style: const TextStyle(color: AppColors.primaryText, fontWeight: FontWeight.bold, fontSize: 18)),
-        actions: [
-          const Padding(
-            padding: EdgeInsets.only(right: 16.0),
+        title: Text(
+          widget.bankName.toUpperCase(),
+          style: const TextStyle(
+            color: AppColors.primaryText,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 16),
             child: Center(
               child: Text(
-                'UPI',
+                "UPI",
                 style: TextStyle(
                   color: AppColors.primaryText,
                   fontWeight: FontWeight.bold,
@@ -98,8 +102,21 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Deep Bandekar', style: TextStyle(color: AppColors.primaryText, fontSize: 16)),
-          Text('₹ ${widget.amount}', style: const TextStyle(color: AppColors.primaryText, fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(
+            widget.recipientName,
+            style: const TextStyle(
+              color: AppColors.primaryText,
+              fontSize: 16,
+            ),
+          ),
+          Text(
+            '₹ ${widget.amount}',
+            style: const TextStyle(
+              color: AppColors.primaryText,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -107,10 +124,17 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
 
   Widget _buildPinEntry() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40.0),
+      padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         children: [
-          const Text('ENTER UPI PIN', style: TextStyle(color: AppColors.secondaryText, fontSize: 14, letterSpacing: 0.5)),
+          const Text(
+            'ENTER UPI PIN',
+            style: TextStyle(
+              color: AppColors.secondaryText,
+              fontSize: 14,
+              letterSpacing: 0.5,
+            ),
+          ),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -120,7 +144,9 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: index < _pin.length ? AppColors.primaryText : AppColors.secondarySurface,
+                  color: index < _pin.length
+                      ? AppColors.primaryText
+                      : AppColors.secondarySurface,
                   shape: BoxShape.circle,
                 ),
               );
@@ -134,7 +160,7 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
   Widget _buildNumpad() {
     return Container(
       color: AppColors.darkSurface,
-      padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 30),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 30),
       child: GridView.count(
         crossAxisCount: 3,
         shrinkWrap: true,
@@ -143,29 +169,60 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
         children: List.generate(12, (index) {
-          String text;
+          String value;
           if (index < 9) {
-            text = (index + 1).toString();
+            value = (index + 1).toString();
           } else if (index == 9) {
-            text = 'backspace';
+            value = 'backspace';
           } else if (index == 10) {
-            text = '0';
+            value = '0';
           } else {
-            text = 'submit';
+            value = 'submit';
           }
 
           return InkWell(
-            onTap: () => _onKeyPress(text),
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(40),
+            onTap: () => _onKeyPress(value),
             child: Center(
-              child: text == 'backspace'
-                  ? const Icon(Icons.backspace_outlined, color: AppColors.primaryText, size: 28)
-                  : text == 'submit'
-                      ? Container(
-                          decoration: const BoxDecoration(color: AppColors.primaryBlue, shape: BoxShape.circle),
-                          child: const Icon(Icons.check, color: AppColors.primaryText, size: 32),
-                        )
-                      : Text(text, style: const TextStyle(color: AppColors.primaryText, fontSize: 28, fontWeight: FontWeight.w600)),
+              child: value == 'backspace'
+                  ? const Icon(
+                Icons.backspace_outlined,
+                color: AppColors.primaryText,
+                size: 28,
+              )
+                  : value == 'submit'
+                  ? Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: _isPinComplete
+                      ? AppColors.primaryBlue
+                      : AppColors.secondarySurface,
+                  shape: BoxShape.circle,
+                  boxShadow: _isPinComplete
+                      ? [
+                    BoxShadow(
+                      color: AppColors.primaryBlue.withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    )
+                  ]
+                      : null,
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              )
+                  : Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           );
         }),
