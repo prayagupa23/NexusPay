@@ -407,7 +407,9 @@ class SupabaseService {
 
       // Update receiver's bank balance (add)
       final receiver = await getUserByUpiId(receiverUpi);
-      if (receiver != null && receiver.userId != null) {
+      if (receiver == null || receiver.userId == null) {
+        debugPrint('Warning: Receiver with UPI ID $receiverUpi not found');
+      } else {
         try {
           // Get receiver's current profile
           final receiverProfileResponse = await _client
@@ -416,15 +418,31 @@ class SupabaseService {
               .eq('user_id', receiver.userId!)
               .maybeSingle();
 
-          if (receiverProfileResponse != null) {
+          if (receiverProfileResponse == null) {
+            // Receiver profile doesn't exist, create it with initial balance
+            debugPrint('Receiver profile not found, creating new profile');
+            final newReceiverProfile = UserProfileModel(
+              userId: receiver.userId!,
+              upiId: receiver.upiId,
+              fullName: receiver.fullName,
+              city: receiver.city,
+              bankName: receiver.bankName,
+              honorScore: 100,
+              bankBalance: amount, // Initial balance is the received amount
+            );
+            await createUserProfile(newReceiverProfile);
+          } else {
+            // Update existing receiver profile balance
             final receiverProfile = UserProfileModel.fromMap(receiverProfileResponse);
             final receiverCurrentBalance = receiverProfile.bankBalance ?? 0.0;
             final receiverNewBalance = receiverCurrentBalance + amount;
             await updateBankBalance(receiver.userId!, receiverNewBalance);
+            debugPrint('Updated receiver balance: $receiverCurrentBalance + $amount = $receiverNewBalance');
           }
         } catch (e) {
-          // Log error but don't fail the transaction
+          // Log error but don't fail the transaction (sender already deducted)
           debugPrint('Error updating receiver balance: $e');
+          // Don't rethrow - transaction is already recorded and sender balance updated
         }
       }
 
