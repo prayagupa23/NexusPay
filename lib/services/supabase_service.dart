@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
+import '../models/user_profile_model.dart';
 
 class SupabaseService {
   final SupabaseClient _client;
@@ -108,6 +109,99 @@ class SupabaseService {
       return response != null ? UserModel.fromMap(response) : null;
     } catch (e) {
       throw 'Error fetching user: ${e.toString()}';
+    }
+  }
+
+  // Create user profile
+  Future<UserProfileModel> createUserProfile(UserProfileModel profile) async {
+    try {
+      final response = await _client
+          .from('user_profile')
+          .insert(profile.toMap())
+          .select()
+          .single();
+
+      return UserProfileModel.fromMap(response);
+    } on PostgrestException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // Get user profile by user_id
+  Future<UserProfileModel?> getUserProfile(int userId) async {
+    try {
+      final response = await _client
+          .from('user_profile')
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      return response != null ? UserProfileModel.fromMap(response) : null;
+    } catch (e) {
+      throw 'Error fetching user profile: ${e.toString()}';
+    }
+  }
+
+  // Get user profile by phone number (convenience method)
+  Future<UserProfileModel?> getUserProfileByPhone(String phoneNumber) async {
+    try {
+      // First get the user
+      final user = await getUserByPhone(phoneNumber);
+      if (user == null || user.userId == null) return null;
+
+      // Then get the profile
+      return await getUserProfile(user.userId!);
+    } catch (e) {
+      throw 'Error fetching user profile: ${e.toString()}';
+    }
+  }
+
+  // Update user profile
+  Future<UserProfileModel> updateUserProfile(UserProfileModel profile) async {
+    try {
+      if (profile.profileId == null) {
+        throw 'Profile ID is required for update';
+      }
+
+      final updateData = profile.toMap();
+      // Remove profile_id and timestamps from update (they're auto-managed)
+      updateData.remove('profile_id');
+      updateData.remove('profile_created_at');
+      updateData['last_updated_at'] = DateTime.now().toIso8601String();
+
+      final response = await _client
+          .from('user_profile')
+          .update(updateData)
+          .eq('profile_id', profile.profileId!)
+          .select()
+          .single();
+
+      return UserProfileModel.fromMap(response);
+    } on PostgrestException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // Update honor score
+  Future<UserProfileModel> updateHonorScore(int userId, int newScore) async {
+    try {
+      if (!UserProfileModel.isValidHonorScore(newScore)) {
+        throw 'Honor score must be between 0 and 100';
+      }
+
+      final response = await _client
+          .from('user_profile')
+          .update({
+            'honor_score': newScore,
+            'last_updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('user_id', userId)
+          .select()
+          .single();
+
+      return UserProfileModel.fromMap(response);
+    } on PostgrestException catch (e) {
+      throw _handleError(e);
     }
   }
 

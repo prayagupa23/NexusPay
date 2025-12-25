@@ -6,6 +6,7 @@ import 'package:heisenbug/screens/pay_anyone_screen.dart';
 import '../theme/app_colors.dart';
 import 'contact_detail_screen.dart';
 import '../tile/avatar_tile.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -75,13 +76,24 @@ class _AppBarSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: const [
-        SizedBox(width: 28),
-        AnimatedAppTitle(),
-        CircleAvatar(
-          radius: 20,
-          backgroundColor: AppColors.secondarySurface,
-          child: Icon(Icons.person_rounded, color: AppColors.primaryText),
+      children: [
+        const SizedBox(width: 28),
+        const AnimatedAppTitle(),
+        InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ProfileScreen(),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: const CircleAvatar(
+            radius: 20,
+            backgroundColor: AppColors.secondarySurface,
+            child: Icon(Icons.person_rounded, color: AppColors.primaryText),
+          ),
         ),
       ],
     );
@@ -328,7 +340,14 @@ class _AlertCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ProfileScreen(),
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.darkSurface,
                   shape: RoundedRectangleBorder(
@@ -502,7 +521,18 @@ class _BottomNavState extends State<BottomNav> {
   Widget item(int i, IconData icon, String label) {
     final selected = selectedIndex == i;
     return InkWell(
-      onTap: () => setState(() => selectedIndex = i),
+      onTap: () {
+        setState(() => selectedIndex = i);
+        // Navigate to profile screen when "You" is tapped
+        if (i == 2) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const ProfileScreen(),
+            ),
+          );
+        }
+      },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

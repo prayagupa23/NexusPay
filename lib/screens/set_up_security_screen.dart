@@ -6,6 +6,7 @@ import '../services/user_registration_state.dart';
 import '../services/supabase_service.dart';
 import '../utils/supabase_config.dart';
 import '../models/user_model.dart';
+import '../models/user_profile_model.dart';
 
 class SetUpSecurityScreen extends StatefulWidget {
   const SetUpSecurityScreen({super.key});
@@ -490,8 +491,28 @@ class _SetUpSecurityScreenState extends State<SetUpSecurityScreen> {
         return;
       }
 
-      // Save to Supabase
-      await _supabaseService.createUser(userModel);
+      // Save to Supabase - Create user first
+      final createdUser = await _supabaseService.createUser(userModel);
+
+      // Create user profile after user is created
+      if (createdUser.userId != null) {
+        final userProfile = UserProfileModel(
+          userId: createdUser.userId!,
+          upiId: createdUser.upiId,
+          fullName: createdUser.fullName,
+          city: createdUser.city,
+          bankName: createdUser.bankName,
+          honorScore: 100, // Default honor score
+        );
+
+        try {
+          await _supabaseService.createUserProfile(userProfile);
+        } catch (e) {
+          // If profile creation fails, still allow user to proceed
+          // but log the error
+          debugPrint('Error creating user profile: $e');
+        }
+      }
 
       // Save phone number to SharedPreferences for future PIN lock screen
       final prefs = await SharedPreferences.getInstance();
