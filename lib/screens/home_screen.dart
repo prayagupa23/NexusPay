@@ -80,49 +80,139 @@ class _ProtectionShieldCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      // Added extra bottom padding (40 instead of 32) so the badge doesn't get cut
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
       decoration: BoxDecoration(
         color: AppColors.surface(context),
-        borderRadius: BorderRadius.circular(40),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(
+          color: AppColors.secondarySurface(context).withOpacity(0.6),
+          width: 1.5,
+        ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
+          )
         ],
       ),
-      child: Column(
+      // Removed ClipRRect so the badge can breathe,
+      // moved the background icon into a simple Stack
+      child: Stack(
+        clipBehavior: Clip.none, // Allows the badge to overflow if needed
         children: [
-          Stack(
-            alignment: Alignment.bottomCenter,
+          // Creative Background Watermark
+          Positioned(
+            right: -10,
+            top: -10,
+            child: Icon(
+              Icons.shield_rounded,
+              size: 80,
+              color: const Color(0xFF1A56DB).withOpacity(0.03),
+            ),
+          ),
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.blue.withOpacity(0.1)),
+              _buildAnimatedShieldIcon(),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          "Secure Protection",
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primaryText(context),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.verified_rounded,
+                            color: Color(0xFF1A56DB), size: 18),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "Your account is currently under end-to-end security monitoring.",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.secondaryText(context),
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.shield_rounded, color: Color(0xFF1A56DB), size: 38),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: const Color(0xFF10B981), borderRadius: BorderRadius.circular(8)),
-                child: const Text("ACTIVE",
-                    style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-              )
             ],
           ),
-          const SizedBox(height: 24),
-          Text("Live Protection Shield",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryText(context))),
-          const SizedBox(height: 8),
-          Text("Your transactions are being monitored\nin real-time.",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: AppColors.secondaryText(context), height: 1.4)),
         ],
       ),
     );
   }
-}
 
+  Widget _buildAnimatedShieldIcon() {
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      clipBehavior: Clip.none, // Critical to prevent cutting
+      children: [
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF1A56DB).withOpacity(0.05),
+            border: Border.all(
+              color: const Color(0xFF1A56DB).withOpacity(0.1),
+              width: 2,
+            ),
+          ),
+          child: const Icon(
+            Icons.gpp_good_rounded,
+            color: Color(0xFF1A56DB),
+            size: 38,
+          ),
+        ),
+        // Positioned used instead of Transform for better layout control
+        Positioned(
+          bottom: -8, // Pulls the badge down without needing Transform
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF10B981).withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                )
+              ],
+            ),
+            child: const Text(
+              "SECURED",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+        )
+      ],
+    );
+  }
+}
 // -----------------------------------------------------------------------------
 // QUICK ACTIONS
 // -----------------------------------------------------------------------------
@@ -173,6 +263,8 @@ class _FraudIntelligenceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
@@ -180,27 +272,65 @@ class _FraudIntelligenceSection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Fraud Intelligence Center",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryText(context))),
-              const Text("View All", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1A56DB))),
+              Text(
+                "Fraud Intelligence Center",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primaryText(context),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              Text(
+                "View All",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.blue.shade300 : const Color(0xFF1A56DB),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFFFFF5F5), Color(0xFFFFE8E8)]),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: const Color(0xFFFFD1D1)),
+              // DARK MODE: Deep Charcoal-Red Gradient | LIGHT MODE: Soft Red Gradient
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [const Color(0xFF1E1B1B), const Color(0xFF121212)]
+                    : [const Color(0xFFFFF5F5), const Color(0xFFFFE8E8)],
+              ),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(
+                color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFFD1D1),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                )
+              ],
             ),
             child: Column(
               children: [
                 Row(
                   children: [
+                    // Alert Icon Container
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: const Color(0xFFFFDADA), borderRadius: BorderRadius.circular(14)),
-                      child: const Icon(Icons.report_problem_rounded, color: Color(0xFFE11D48)),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFFDADA),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        Icons.gpp_maybe_rounded,
+                        color: isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48),
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -210,38 +340,78 @@ class _FraudIntelligenceSection extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text("Fraud Alert Detected",
-                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.black)),
+                              Text(
+                                "Critical Alert",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 16,
+                                  color: isDark ? Colors.white : Colors.black,
+                                ),
+                              ),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(color: const Color(0xFFFFE4E4), borderRadius: BorderRadius.circular(8)),
-                                child: const Text("High Risk",
-                                    style: TextStyle(color: Color(0xFFE11D48), fontSize: 10, fontWeight: FontWeight.bold)),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE11D48).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  "HIGH RISK",
+                                  style: TextStyle(
+                                    color: isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          const Text("Suspicious login attempt", style: TextStyle(fontSize: 13, color: Color(0xFF991B1B))),
+                          Text(
+                            "Suspicious login attempt detected",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                const Text("Unverified contact, verification required", style: TextStyle(fontSize: 14, color: Color(0xFF4B5563))),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+                // Descriptive text with better separation
+                Text(
+                  "An unrecognized device tried to access your secure vault. Immediate review recommended.",
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.secondaryText(context),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Action Button
                 SizedBox(
                   width: double.infinity,
-                  height: 44,
+                  height: 48,
                   child: ElevatedButton(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFFE11D48),
+                      backgroundColor: isDark ? const Color(0xFF2D2D2D) : Colors.white,
+                      foregroundColor: isDark ? Colors.white : const Color(0xFFE11D48),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15), side: const BorderSide(color: Color(0xFFFEE2E2))),
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
+                        ),
+                      ),
                     ),
-                    child: const Text("View Profile", style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      "Review Security Log",
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                    ),
                   ),
                 )
               ],
