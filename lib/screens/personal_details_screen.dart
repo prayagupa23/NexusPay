@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Added for Haptic feedback
 import 'package:country_picker/country_picker.dart';
 import '../theme/app_colors.dart';
 import 'verification_screen.dart';
@@ -19,11 +20,11 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
-  
-  Country _selectedCountry = Country.parse('IN'); // Default to India for 10-digit phone
+
+  Country _selectedCountry = Country.parse('IN');
   bool _isLoading = false;
   String? _errorMessage;
-  
+
   final _registrationState = UserRegistrationState();
   late final SupabaseService _supabaseService;
 
@@ -31,17 +32,9 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   void initState() {
     super.initState();
     _supabaseService = SupabaseService(SupabaseConfig.client);
-    
-    // Load existing data if available
-    if (_registrationState.fullName != null) {
-      _nameController.text = _registrationState.fullName!;
-    }
-    if (_registrationState.phoneNumber != null) {
-      _phoneController.text = _registrationState.phoneNumber!;
-    }
-    if (_registrationState.email != null) {
-      _emailController.text = _registrationState.email!;
-    }
+    _nameController.text = _registrationState.fullName ?? '';
+    _phoneController.text = _registrationState.phoneNumber ?? '';
+    _emailController.text = _registrationState.email ?? '';
   }
 
   @override
@@ -55,408 +48,366 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryBg,
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryBg,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.secondarySurface,
-              borderRadius: BorderRadius.circular(20),
+      backgroundColor: AppColors.bg(context),
+      appBar: _buildAppBar(context),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildProgressBar(context),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 32),
+                    _buildHeader(context),
+                    const SizedBox(height: 32),
+                    if (_errorMessage != null) _buildErrorBanner(),
+                    _buildForm(context),
+                    const SizedBox(height: 40),
+                    _buildSubmitButton(),
+                    const SizedBox(height: 32),
+                    _buildFooter(context),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
             ),
-            child: Row(
-              children: const [
-                Icon(Icons.lock, size: 16, color: AppColors.primaryBlue),
-                SizedBox(width: 6),
-                Text(
-                  'Secure',
-                  style: TextStyle(
-                    color: AppColors.primaryText,
-                    fontWeight: FontWeight.w500,
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- UI Components ---
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      elevation: 0,
+      backgroundColor: AppColors.bg(context),
+      leadingWidth: 70,
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 16),
+        child: Center(
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.secondarySurface(context), width: 1),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, size: 14),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        Container(
+          margin: const EdgeInsets.only(right: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.successGreen.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.shield_outlined, size: 14, color: AppColors.successGreen),
+              const SizedBox(width: 6),
+              Text(
+                'SECURE',
+                style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 0.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.successGreen,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProgressBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'STEP 1 OF 5',
+                style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryBlue,
+                ),
+              ),
+              Text(
+                '20% Complete',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.mutedText(context)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: 0.2,
+              minHeight: 6,
+              backgroundColor: AppColors.secondarySurface(context),
+              valueColor: const AlwaysStoppedAnimation(AppColors.primaryBlue),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Personal Details',
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+            color: AppColors.primaryText(context),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Please ensure these details match your official identity documents for a smooth verification.',
+          style: TextStyle(
+            fontSize: 15,
+            height: 1.5,
+            color: AppColors.secondaryText(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildForm(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _Label('FULL NAME'),
+          _InputField(
+            controller: _nameController,
+            hint: 'e.g. John Doe',
+            keyboardType: TextInputType.name,
+            prefixIcon: Icons.person_outline_rounded,
+            validator: (v) => v == null || v.trim().length < 3 ? 'Please enter your legal name' : null,
+          ),
+          const SizedBox(height: 24),
+          const _Label('MOBILE NUMBER'),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  showCountryPicker(
+                    context: context,
+                    showPhoneCode: true,
+                    favorite: const ['IN'],
+                    countryListTheme: CountryListThemeData(
+                      borderRadius: BorderRadius.circular(24),
+                      inputDecoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Search country',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    onSelect: (c) => setState(() => _selectedCountry = c),
+                  );
+                },
+                child: Container(
+                  height: 58,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface(context),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.secondarySurface(context), width: 1.5),
                   ),
+                  child: Row(
+                    children: [
+                      Text(_selectedCountry.flagEmoji, style: const TextStyle(fontSize: 20)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '+${_selectedCountry.phoneCode}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryText(context),
+                        ),
+                      ),
+                      Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.mutedText(context), size: 18),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _InputField(
+                  controller: _phoneController,
+                  hint: '00000 00000',
+                  keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  validator: (v) => UserModel.isValidPhone(v ?? '') ? null : 'Invalid phone number',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const _Label('EMAIL ADDRESS'),
+          _InputField(
+            controller: _emailController,
+            hint: 'name@example.com',
+            keyboardType: TextInputType.emailAddress,
+            prefixIcon: Icons.alternate_email_rounded,
+            validator: (v) => UserModel.isValidEmail(v ?? '') ? null : 'Enter a valid email address',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return Container(
+      width: double.infinity,
+      height: 62,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryBlue.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _handleContinue,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryBlue,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          elevation: 0,
+        ),
+        child: _isLoading
+            ? const SizedBox(
+          height: 24, width: 24,
+          child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+        )
+            : const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Continue', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            SizedBox(width: 8),
+            Icon(Icons.arrow_forward_rounded, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEBEB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFC1C1)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_rounded, color: Color(0xFFD32F2F), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _errorMessage!,
+              style: const TextStyle(color: Color(0xFFD32F2F), fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(BuildContext context) {
+    return Center(
+      child: Column(
+        children: [
+          Text(
+            'Securing your data is our top priority.',
+            style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+          ),
+          const SizedBox(height: 16),
+          RichText(
+            textAlign: TextAlign.center,
+            text: TextSpan(
+              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), height: 1.5),
+              children: [
+                const TextSpan(text: 'By continuing, you agree to our '),
+                TextSpan(
+                  text: 'Privacy Policy',
+                  style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.w600),
+                ),
+                const TextSpan(text: ' and '),
+                TextSpan(
+                  text: 'Terms',
+                  style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
           ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24), // ⬅ moved UI down
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // STEP INFO
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text(
-                    'Step 1 of 5',
-                    style: TextStyle(
-                      color: AppColors.primaryBlue,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '20% Completed',
-                    style: TextStyle(
-                      color: AppColors.secondaryText,
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: 0.2, // 1/5
-                  minHeight: 10,
-                  backgroundColor: AppColors.secondarySurface,
-                  valueColor: const AlwaysStoppedAnimation(AppColors.primaryBlue),
-                ),
-              ),
-
-              const SizedBox(height: 36),
-
-              // TITLE
-              const Text(
-                'Personal Details',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryText,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              const Text(
-                'Let’s get started with your account setup. '
-                    'We need this info to verify your identity.',
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 1.6,
-                  color: AppColors.secondaryText,
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Error message
-              if (_errorMessage != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.dangerBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.dangerRed),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: AppColors.dangerRed, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: AppColors.dangerRed, fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // FULL NAME
-              Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _Label('Legal Full Name'),
-                    _InputField(
-                      controller: _nameController,
-                      hint: 'e.g. Parth Salunke',
-                      keyboardType: TextInputType.name,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your full name';
-                        }
-                        if (value.trim().length < 3) {
-                          return 'Name must be at least 3 characters';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // MOBILE NUMBER
-                    const _Label('Mobile Number'),
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            showCountryPicker(
-                              context: context,
-                              showPhoneCode: true,
-                              favorite: const ['IN', 'US'],
-                              countryListTheme: CountryListThemeData(
-                                backgroundColor: AppColors.primaryBg,
-                                textStyle: const TextStyle(
-                                  color: AppColors.primaryText,
-                                ),
-                                bottomSheetHeight: 520,
-                                inputDecoration: const InputDecoration(
-                                  hintText: 'Search country',
-                                  hintStyle: TextStyle(color: AppColors.mutedText),
-                                  enabledBorder: UnderlineInputBorder(
-                                    borderSide:
-                                    BorderSide(color: AppColors.secondarySurface),
-                                  ),
-                                ),
-                              ),
-                              onSelect: (country) {
-                                setState(() => _selectedCountry = country);
-                              },
-                            );
-                          },
-                          child: Container(
-                            height: 56,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              color: AppColors.darkSurface,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: AppColors.secondarySurface,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Text(
-                                  _selectedCountry.flagEmoji,
-                                  style: const TextStyle(fontSize: 18),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '+${_selectedCountry.phoneCode}',
-                                  style: const TextStyle(
-                                    color: AppColors.primaryText,
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.keyboard_arrow_down,
-                                  color: AppColors.mutedText,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _InputField(
-                            controller: _phoneController,
-                            hint: '8169312345',
-                            keyboardType: TextInputType.phone,
-                            maxLength: 10,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Please enter phone number';
-                              }
-                              if (!UserModel.isValidPhone(value.trim())) {
-                                return 'Phone must be exactly 10 digits';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // EMAIL
-                    const _Label('Email Address'),
-                    _InputField(
-                      controller: _emailController,
-                      hint: 'parth@example.com',
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your email';
-                        }
-                        if (!UserModel.isValidEmail(value.trim())) {
-                          return 'Please enter a valid email address';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              const Text(
-                'We’ll send a verification link to this email.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.mutedText,
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // CONTINUE BUTTON
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 8,
-                    shadowColor: AppColors.subtleBlueGlow,
-                    disabledBackgroundColor: AppColors.secondarySurface,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Continue',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              ),
-
-              const SizedBox(height: 22),
-
-              // PRIVACY
-              Center(
-                child: RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    style: const TextStyle(fontSize: 13),
-                    children: [
-                      TextSpan(
-                        text: 'By continuing, you agree to our ',
-                        style: TextStyle(color: AppColors.mutedText),
-                      ),
-                      TextSpan(
-                        text: 'Privacy Policy',
-                        style: TextStyle(color: AppColors.primaryBlue),
-                      ),
-                      TextSpan(
-                        text: ' and ',
-                        style: TextStyle(color: AppColors.mutedText),
-                      ),
-                      TextSpan(
-                        text: 'Terms of Service.',
-                        style: TextStyle(color: AppColors.primaryBlue),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 28),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
   Future<void> _handleContinue() async {
-    setState(() {
-      _errorMessage = null;
-    });
+    HapticFeedback.lightImpact();
+    setState(() => _errorMessage = null);
+    if (!_formKey.currentState!.validate()) return;
 
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
-    final email = _emailController.text.trim();
-
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
-      // Check for duplicates
-      final phoneExists = await _supabaseService.checkPhoneExists(phone);
-      if (phoneExists) {
-        setState(() {
-          _errorMessage = 'This phone number is already registered';
-          _isLoading = false;
-        });
+      if (await _supabaseService.checkPhoneExists(_phoneController.text.trim())) {
+        setState(() => _errorMessage = 'This phone number is already registered.');
+        return;
+      }
+      if (await _supabaseService.checkEmailExists(_emailController.text.trim())) {
+        setState(() => _errorMessage = 'This email address is already registered.');
         return;
       }
 
-      final emailExists = await _supabaseService.checkEmailExists(email);
-      if (emailExists) {
-        setState(() {
-          _errorMessage = 'This email is already registered';
-          _isLoading = false;
-        });
-        return;
-      }
+      _registrationState
+        ..fullName = _nameController.text.trim()
+        ..phoneNumber = _phoneController.text.trim()
+        ..email = _emailController.text.trim();
 
-      // Save to registration state
-      _registrationState.fullName = name;
-      _registrationState.phoneNumber = phone;
-      _registrationState.email = email;
-
-      // Navigate to next screen
       if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const VerificationScreen(),
-          ),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const VerificationScreen()));
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Error: ${e.toString()}';
-        _isLoading = false;
-      });
+      setState(() => _errorMessage = 'Something went wrong. Please try again.');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 }
-
-// =========================
-// REUSABLE WIDGETS
-// =========================
 
 class _Label extends StatelessWidget {
   final String text;
@@ -465,13 +416,14 @@ class _Label extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 10, left: 4),
       child: Text(
         text,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primaryText,
+        style: TextStyle(
+          fontSize: 11,
+          letterSpacing: 1.1,
+          fontWeight: FontWeight.w800,
+          color: AppColors.secondaryText(context).withOpacity(0.8),
         ),
       ),
     );
@@ -483,6 +435,7 @@ class _InputField extends StatelessWidget {
   final String hint;
   final TextInputType keyboardType;
   final int? maxLength;
+  final IconData? prefixIcon;
   final String? Function(String?)? validator;
 
   const _InputField({
@@ -490,6 +443,7 @@ class _InputField extends StatelessWidget {
     required this.hint,
     required this.keyboardType,
     this.maxLength,
+    this.prefixIcon,
     this.validator,
   });
 
@@ -500,42 +454,30 @@ class _InputField extends StatelessWidget {
       keyboardType: keyboardType,
       maxLength: maxLength,
       validator: validator,
-      style: const TextStyle(color: AppColors.primaryText),
+      style: TextStyle(color: AppColors.primaryText(context), fontWeight: FontWeight.w600),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: AppColors.mutedText),
+        hintStyle: TextStyle(color: AppColors.mutedText(context), fontWeight: FontWeight.normal),
         filled: true,
-        fillColor: AppColors.darkSurface,
-        contentPadding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        fillColor: AppColors.surface(context),
         counterText: '',
-        errorStyle: const TextStyle(color: AppColors.dangerRed, fontSize: 12),
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20, color: AppColors.mutedText(context)) : null,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: AppColors.secondarySurface,
-          ),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: AppColors.secondarySurface(context), width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: AppColors.primaryBlue,
-            width: 1.5,
-          ),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: AppColors.primaryBlue, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: AppColors.dangerRed,
-            width: 1.5,
-          ),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: AppColors.dangerRed,
-            width: 1.5,
-          ),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 2),
         ),
       ),
     );

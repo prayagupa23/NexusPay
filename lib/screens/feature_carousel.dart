@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
+import '../theme/app_colors.dart';
 import 'personal_details_screen.dart';
 
 class Feature {
@@ -7,7 +7,11 @@ class Feature {
   final String description;
   final String imagePath;
 
-  Feature({required this.name, required this.description, required this.imagePath});
+  Feature({
+    required this.name,
+    required this.description,
+    required this.imagePath,
+  });
 }
 
 class FeatureCarousel extends StatefulWidget {
@@ -45,63 +49,67 @@ class _FeatureCarouselState extends State<FeatureCarousel> {
   ];
 
   @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: _features.length,
-              onPageChanged: (int page) {
-                setState(() {
-                  _currentPage = page;
-                });
-              },
-              itemBuilder: (context, index) {
-                return _buildFeaturePage(_features[index]);
-              },
+      backgroundColor: AppColors.bg(context),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: _features.length,
+                onPageChanged: (page) => setState(() => _currentPage = page),
+                itemBuilder: (context, index) => _buildFeaturePage(_features[index]),
+              ),
             ),
-          ),
-          _buildPageIndicator(),
-          _buildNavigationButtons(),
-        ],
+            _buildPageIndicator(),
+            const SizedBox(height: 40),
+            _buildNavigationButtons(),
+            const SizedBox(height: 60),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildFeaturePage(Feature feature) {
-    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+      padding: const EdgeInsets.symmetric(horizontal: 48.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Image.asset(
             feature.imagePath,
-            height: 140,
-            width: 140,
+            height: 240,
+            width: 240,
+            fit: BoxFit.contain,
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 60),
           Text(
             feature.name,
             textAlign: TextAlign.center,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontSize: 24,
+            style: TextStyle(
+              fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onBackground,
+              color: AppColors.primaryText(context),
+              height: 1.3,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Text(
             feature.description,
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontSize: 16,
-              color: theme.colorScheme.onSurface,
+            style: TextStyle(
+              fontSize: 17,
+              color: AppColors.secondaryText(context),
+              height: 1.6,
             ),
           ),
         ],
@@ -110,19 +118,19 @@ class _FeatureCarouselState extends State<FeatureCarousel> {
   }
 
   Widget _buildPageIndicator() {
-    final theme = Theme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(_features.length, (index) {
-        return Container(
-          margin: const EdgeInsets.all(8.0),
-          width: 10,
-          height: 10,
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          width: _currentPage == index ? 36 : 12,
+          height: 12,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
             color: _currentPage == index
-                ? theme.primaryColor
-                : theme.colorScheme.onSurface.withOpacity(0.5),
+                ? AppColors.primaryBlue
+                : AppColors.secondarySurface(context),
+            borderRadius: BorderRadius.circular(12),
           ),
         );
       }),
@@ -130,45 +138,66 @@ class _FeatureCarouselState extends State<FeatureCarousel> {
   }
 
   Widget _buildNavigationButtons() {
-    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 32.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          TextButton(
-            onPressed: () {
-              if (_currentPage > 0) {
-                _pageController.previousPage(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              }
-            },
+          // Previous Button
+          OutlinedButton(
+            onPressed: _currentPage > 0
+                ? () => _pageController.previousPage(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+            )
+                : null,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _currentPage > 0 ? AppColors.primaryBlue : AppColors.mutedText(context),
+              side: BorderSide(
+                color: _currentPage > 0 ? AppColors.primaryBlue : AppColors.secondarySurface(context),
+                width: 1.5,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              elevation: 0,
+            ),
             child: Text(
               'Previous',
-              style: TextStyle(color: theme.colorScheme.onSurface),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: _currentPage > 0 ? AppColors.primaryBlue : AppColors.mutedText(context),
+              ),
             ),
           ),
-          TextButton(
+
+          // Next / Get Started Button
+          ElevatedButton(
             onPressed: () {
               if (_currentPage < _features.length - 1) {
                 _pageController.nextPage(
-                  duration: const Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 400),
                   curve: Curves.easeInOut,
                 );
               } else {
-                // Navigate to HomeScreen when on last slide
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const PersonalDetailsScreen()),
+                  MaterialPageRoute(builder: (_) => const PersonalDetailsScreen()),
                 );
               }
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              elevation: 12,
+              shadowColor: AppColors.subtleBlueGlow,
+            ),
             child: Text(
               _currentPage == _features.length - 1 ? 'Get Started' : 'Next',
-              style: TextStyle(
-                color: theme.primaryColor,
-                fontWeight: FontWeight.w600,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),

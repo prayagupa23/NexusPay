@@ -1,16 +1,14 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:heisenbug/screens/pay_anyone_screen.dart';
 import '../theme/app_colors.dart';
+import 'pay_anyone_screen.dart';
 import 'contact_detail_screen.dart';
-import '../tile/avatar_tile.dart';
 import 'profile_screen.dart';
 import '../services/supabase_service.dart';
 import '../utils/supabase_config.dart';
 import '../models/user_model.dart';
+import '../tile/avatar_tile.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -18,51 +16,23 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.bg(context),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           child: Column(
             children: [
-              // T O P  B L A C K  S E C T I O N
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: const [
-                    SizedBox(height: 32),
-                    _AppBarSection(),
-                    SizedBox(height: 8),
-                    HeroCarousel(),
-                    SizedBox(height: 14),
-                  ],
-                ),
-              ),
-
-              // G R E Y I S H  S E C T I O N
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.secondarySurface.withOpacity(0.85),
-                  // Greyish background like GPay
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(0),
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: const [
-                    SizedBox(height: 32),
-                    // Small top padding to avoid abrupt edge
-                    _QuickActions(),
-                    SizedBox(height: 32),
-                    _AlertCard(),
-                    SizedBox(height: 32),
-                    _TrustedContacts(),
-                    SizedBox(height: 110),
-                    // Space for bottom nav
-                  ],
-                ),
-              ),
+              const SizedBox(height: 16),
+              const _AppBarSection(),
+              const SizedBox(height: 24),
+              const _ProtectionShieldCard(),
+              const SizedBox(height: 32),
+              const _QuickActionsRow(),
+              const SizedBox(height: 32),
+              const _FraudIntelligenceSection(),
+              const SizedBox(height: 40),
+              const TrustedContactsSection(), // Correctly linked section
+              const SizedBox(height: 120),
             ],
           ),
         ),
@@ -72,329 +42,228 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// A P P  B A R
+// -----------------------------------------------------------------------------
+// APP BAR
+// -----------------------------------------------------------------------------
 class _AppBarSection extends StatelessWidget {
   const _AppBarSection();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const SizedBox(width: 28),
-        const AnimatedAppTitle(),
-        InkWell(
-          onTap: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const ProfileScreen(),
-              ),
-            );
-            // Profile screen will reload when navigated back to
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: const CircleAvatar(
-            radius: 20,
-            backgroundColor: AppColors.secondarySurface,
-            child: Icon(Icons.person_rounded, color: AppColors.primaryText),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// A N I M A T E D   A P P  T I T L E
-
-class AnimatedAppTitle extends StatefulWidget {
-  const AnimatedAppTitle({super.key});
-
-  @override
-  State<AnimatedAppTitle> createState() => _AnimatedAppTitleState();
-}
-
-class _AnimatedAppTitleState extends State<AnimatedAppTitle> {
-  bool showStatus = false;
-  bool hasAutoRun = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _autoShowOnce();
-  }
-
-  // Auto-run only ONCE when screen opens
-  void _autoShowOnce() async {
-    if (hasAutoRun) return;
-
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-
-    setState(() => showStatus = true);
-
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-
-    setState(() => showStatus = false);
-    hasAutoRun = true;
-  }
-
-  // 🔹 Run again ONLY when user taps
-  void _onTap() async {
-    setState(() => showStatus = true);
-
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-
-    setState(() => showStatus = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _onTap,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 450),
-        transitionBuilder: (child, animation) {
-          return SlideTransition(
-            position: Tween(
-              begin: const Offset(0, 0.6),
-              end: Offset.zero,
-            ).animate(animation),
-            child: FadeTransition(opacity: animation, child: child),
-          );
-        },
-        child: FittedBox(
-          key: ValueKey(showStatus),
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.center,
-          child: Text(
-            showStatus
-                ? "Last security check · 3 mins ago"
-                : "App Name",
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: showStatus
-                ? const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: AppColors.secondaryText,
-            )
-                : const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primaryText,
-              letterSpacing: -0.6,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text("AppName",
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.primaryText(context))),
+          GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+            child: CircleAvatar(
+              radius: 24,
+              backgroundColor: const Color(0xFFFFE4D6),
+              child: const Icon(Icons.person, color: Color(0xFFF97316)),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-
-// Quick Actions wrapped in greyish container to simulate the lower background (COMMENT IT OUT LATER)
-class _QuickActionsSection extends StatelessWidget {
-  const _QuickActionsSection();
+// -----------------------------------------------------------------------------
+// PROTECTION SHIELD CARD
+// -----------------------------------------------------------------------------
+class _ProtectionShieldCard extends StatelessWidget {
+  const _ProtectionShieldCard();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
       decoration: BoxDecoration(
-        color: AppColors.secondarySurface.withOpacity(0.7),
-        // Greyish background like GPay lower section
-        borderRadius: BorderRadius.circular(28),
+        color: AppColors.surface(context),
+        borderRadius: BorderRadius.circular(40),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))
+        ],
       ),
-      child: const _QuickActions(),
-    );
-  }
-}
-
-class _QuickActions extends StatelessWidget {
-  const _QuickActions();
-
-  @override
-  Widget build(BuildContext context) {
-    final actions = [
-      {
-        "icon": Icons.qr_code_scanner_rounded,
-        "label": "Scan any\nQR code",
-        "onTap": () {
-          // TODO: QR Screen
-        },
-      },
-      {
-        "icon": Icons.payment_rounded,
-        "label": "Pay\nanyone",
-        "onTap": () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const PayScreen(),
-            ),
-          );
-        },
-      },
-      {
-        "icon": Icons.location_on_rounded,
-        "label": "Heat\nMaps",
-        "onTap": () {
-          // TODO: Heat map screen
-        },
-      },
-      {
-        "icon": Icons.security_rounded,
-        "label": "Fraud\nDetect",
-        "onTap": () {
-          // TODO: Fraud detect screen
-        },
-      },
-    ];
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: actions.asMap().entries.map((e) {
-        final item = e.value;
-
-        return GestureDetector(
-          onTap: item["onTap"] as VoidCallback?,
-          child: Column(
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.bottomCenter,
             children: [
               Container(
-                width: 66,
-                height: 66,
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryBlue,
-                  borderRadius: BorderRadius.circular(20),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.blue.withOpacity(0.1)),
                 ),
-                child: Icon(
-                  item["icon"] as IconData,
-                  color: Colors.white,
-                  size: 32,
-                ),
-              )
-                  .animate(delay: (e.key * 120).ms)
-                  .scale(begin: const Offset(0.85, 0.85)),
-              const SizedBox(height: 8),
-              Text(
-                item["label"] as String,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryText,
-                ),
+                child: const Icon(Icons.shield_rounded, color: Color(0xFF1A56DB), size: 38),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: const Color(0xFF10B981), borderRadius: BorderRadius.circular(8)),
+                child: const Text("ACTIVE",
+                    style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+              )
             ],
           ),
-        );
-      }).toList(),
+          const SizedBox(height: 24),
+          Text("Live Protection Shield",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.primaryText(context))),
+          const SizedBox(height: 8),
+          Text("Your transactions are being monitored\nin real-time.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: AppColors.secondaryText(context), height: 1.4)),
+        ],
+      ),
     );
   }
 }
 
-
-// A L E R T  C A R D
-
-class _AlertCard extends StatelessWidget {
-  const _AlertCard();
+// -----------------------------------------------------------------------------
+// QUICK ACTIONS
+// -----------------------------------------------------------------------------
+class _QuickActionsRow extends StatelessWidget {
+  const _QuickActionsRow();
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppColors.dangerBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.dangerRed, width: 1.4),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _actionItem(context, "Scan & Pay", Icons.qr_code_scanner_rounded),
+          _actionItem(context, "Send Money", Icons.send_rounded, onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const PayScreen()));
+          }),
+          _actionItem(context, "Heat Maps", Icons.map_rounded),
+          _actionItem(context, "Detect Fraud", Icons.fact_check_rounded),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionItem(BuildContext context, String label, IconData icon, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 64, height: 64,
+            decoration: BoxDecoration(color: const Color(0xFF1A56DB), borderRadius: BorderRadius.circular(20)),
+            child: Icon(icon, color: Colors.white, size: 28),
           ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: AppColors.dangerRed.withOpacity(0.2),
-                child: const Icon(
-                  Icons.person_outline,
-                  color: AppColors.dangerRed,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      "Verification \nRequired ! ",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primaryText,
-                        height: 1.3,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ProfileScreen(),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.darkSurface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                ),
-                child: const Text(
-                  "View Profile",
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Positioned(
-          top: -5,
-          right: 1,
-          child: IconButton(
-            icon: const Icon(Icons.close_rounded, size: 22),
-            color: AppColors.mutedText,
-            onPressed: () {},
-          ),
-        ),
-      ],
-    ).animate().fadeIn().slideY(begin: 0.15);
+          const SizedBox(height: 10),
+          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryText(context))),
+        ],
+      ),
+    );
   }
 }
 
-// T R U S T E D  C O N T A C T S
-
-class _TrustedContacts extends StatefulWidget {
-  const _TrustedContacts();
+// -----------------------------------------------------------------------------
+// FRAUD INTELLIGENCE
+// -----------------------------------------------------------------------------
+class _FraudIntelligenceSection extends StatelessWidget {
+  const _FraudIntelligenceSection();
 
   @override
-  State<_TrustedContacts> createState() => _TrustedContactsState();
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Fraud Intelligence Center",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryText(context))),
+              const Text("View All", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1A56DB))),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFFFFF5F5), Color(0xFFFFE8E8)]),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: const Color(0xFFFFD1D1)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: const Color(0xFFFFDADA), borderRadius: BorderRadius.circular(14)),
+                      child: const Icon(Icons.report_problem_rounded, color: Color(0xFFE11D48)),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("Fraud Alert Detected",
+                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Colors.black)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(color: const Color(0xFFFFE4E4), borderRadius: BorderRadius.circular(8)),
+                                child: const Text("High Risk",
+                                    style: TextStyle(color: Color(0xFFE11D48), fontSize: 10, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                          const Text("Suspicious login attempt", style: TextStyle(fontSize: 13, color: Color(0xFF991B1B))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text("Unverified contact, verification required", style: TextStyle(fontSize: 14, color: Color(0xFF4B5563))),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFFE11D48),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15), side: const BorderSide(color: Color(0xFFFEE2E2))),
+                    ),
+                    child: const Text("View Profile", style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                )
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _TrustedContactsState extends State<_TrustedContacts> {
+// -----------------------------------------------------------------------------
+// TRUSTED CONTACTS SECTION
+// -----------------------------------------------------------------------------
+class TrustedContactsSection extends StatefulWidget {
+  const TrustedContactsSection({super.key});
+
+  @override
+  State<TrustedContactsSection> createState() => _TrustedContactsSectionState();
+}
+
+class _TrustedContactsSectionState extends State<TrustedContactsSection> {
   late final SupabaseService _supabaseService;
   List<UserModel> _contacts = [];
   bool _isLoading = true;
@@ -409,167 +278,77 @@ class _TrustedContactsState extends State<_TrustedContacts> {
   Future<void> _loadContacts() async {
     try {
       final allUsers = await _supabaseService.getAllUsers();
-      
-      // Get current user's phone number to exclude from contacts
       final prefs = await SharedPreferences.getInstance();
       final currentPhone = prefs.getString('logged_in_phone');
-      
-      // Filter out current user
       final contacts = currentPhone != null
           ? allUsers.where((user) => user.phoneNumber != currentPhone).toList()
           : allUsers;
-
-      if (mounted) {
-        setState(() {
-          _contacts = contacts;
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() { _contacts = contacts; _isLoading = false; });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text("Trusted Contacts",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryText(context))),
+        ),
+        const SizedBox(height: 20),
+        _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Trusted Contacts",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primaryText,
+              ..._contacts.map((user) => Padding(
+                padding: const EdgeInsets.only(right: 24),
+                child: ContactAvatar(
+                  name: user.fullName,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => ContactDetailScreen(name: user.fullName, upiId: user.upiId))),
                 ),
-              ),
-              Text(
-                "View all",
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.primaryBlue,
-                ),
-              ),
+              )),
+              _buildAddButton(),
             ],
           ),
-          const SizedBox(height: 20),
+        ),
+      ],
+    );
+  }
 
-          // Safe Grid — NO OVERFLOW EVER
-          _isLoading
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
-                    ),
-                  ),
-                )
-              : _contacts.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Text(
-                          'No contacts available',
-                          style: TextStyle(
-                            color: AppColors.mutedText,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    )
-                  : LayoutBuilder(
-                      builder: (context, constraints) {
-                        const int columns = 4;
-                        const double spacing = 20.0;
-                        final double totalSpacing = spacing * (columns - 1);
-                        final double itemWidth = (constraints.maxWidth - totalSpacing) / columns;
-
-                        return Wrap(
-                          spacing: spacing,
-                          runSpacing: 20,
-                          children: _contacts.map((user) {
-                            return SizedBox(
-                              width: itemWidth,
-                              child: ContactAvatar(
-                                name: user.fullName,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ContactDetailScreen(
-                                        name: user.fullName,
-                                        upiId: user.upiId,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            );
-                          }).toList(),
-                        );
-                      },
-                    ),
-          const SizedBox(height: 32),
-        ],
-      ),
+  Widget _buildAddButton() {
+    return Column(
+      children: [
+        Container(
+          width: 72, height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1.5),
+          ),
+          child: Icon(Icons.add, color: Colors.grey.shade400, size: 28),
+        ),
+        const SizedBox(height: 12),
+        Text("Add New",
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade500)),
+      ],
     );
   }
 }
 
-
-
-/*class _ContactAvatar extends StatelessWidget {
-  final String name;
-  final String upiId;
-
-  const _ContactAvatar({
-    required this.name,
-    required this.upiId,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ContactDetailScreen(
-              name: name,
-              upiId: upiId,
-            ),
-          ),
-        );
-      },
-      child: CircleAvatar(
-        radius: 28,
-        backgroundColor: AppColors.secondarySurface,
-        child: Text(
-          name[0].toUpperCase(),
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.primaryText,
-          ),
-        ),
-      ),
-    );
-  }
-}*/
-
-
-// B O T T O M  N A V
+// -----------------------------------------------------------------------------
+// BOTTOM NAVIGATION
+// -----------------------------------------------------------------------------
 class BottomNav extends StatefulWidget {
   const BottomNav({super.key});
 
@@ -580,275 +359,49 @@ class BottomNav extends StatefulWidget {
 class _BottomNavState extends State<BottomNav> {
   int selectedIndex = 0;
 
-  Widget item(int i, IconData icon, String label) {
-    final selected = selectedIndex == i;
-    return InkWell(
-      onTap: () {
-        setState(() => selectedIndex = i);
-        // Navigate to profile screen when "You" is tapped
-        if (i == 2) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const ProfileScreen(),
-            ),
-          );
-        }
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedContainer(
-            duration: 250.ms,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: selected
-                  ? AppColors.primaryBlue.withOpacity(0.18)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              icon,
-              color: selected ? AppColors.primaryBlue : AppColors.mutedText,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: selected ? AppColors.primaryBlue : AppColors.mutedText,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: const BoxDecoration(
-        color: AppColors.secondarySurface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(0)),
+      height: 90,
+      decoration: BoxDecoration(
+        color: AppColors.surface(context),
+        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.1))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          item(0, Icons.home_rounded, "Home"),
-          item(1, Icons.account_balance_wallet_rounded, "Money"),
-          item(2, Icons.person_rounded, "You"),
+          _navItem(0, Icons.home_filled, "Home"),
+          _navItem(1, Icons.account_balance_wallet_rounded, "Money"),
+          _navItem(2, Icons.person_rounded, "Profile"),
         ],
       ),
     );
   }
-}
 
-// H E R O C A R O U S E L
-class HeroCarousel extends StatefulWidget {
-  const HeroCarousel({super.key});
-
-  @override
-  State<HeroCarousel> createState() => _HeroCarouselState();
-}
-
-class _HeroCarouselState extends State<HeroCarousel> {
-  late final PageController _controller;
-  late final Timer _timer;
-
-  final List<Map<String, dynamic>> slides = [
-    {
-      "text": "Real-time AI protection for every transaction.",
-      "painter": MountainSecurePainter(),
-    },
-    {
-      "text": "Instant fraud alerts before money moves.",
-      "painter": ShieldAlertPainter(),
-    },
-    {
-      "text": "Stay ahead with trusted contacts & heatmap.",
-      "painter": NetworkTrustPainter(),
-    },
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = PageController(
-      viewportFraction: 1.0, // Full-width carousel
-    );
-
-    // Optional auto-slide timer
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted || !_controller.hasClients) return;
-      final nextPage = (_controller.page?.round() ?? 0) + 1;
-      _controller.animateToPage(
-        nextPage >= slides.length ? 0 : nextPage,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-      );
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer.cancel();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 180,
-      child: Stack(
+  Widget _navItem(int index, IconData icon, String label) {
+    bool isSelected = selectedIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => selectedIndex = index),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          PageView.builder(
-            controller: _controller,
-            itemCount: slides.length,
-            physics: const BouncingScrollPhysics(), // Allow manual sliding
-            itemBuilder: (context, index) {
-              final slide = slides[index];
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 8),
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.black, // Keep original color scheme
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        slide["text"] as String,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15.5,
-                          height: 1.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 80,
-                      child: CustomPaint(
-                        painter: slide["painter"] as CustomPainter,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-
-          // Page indicators
-          Positioned(
-            bottom: 14,
-            left: 0,
-            right: 0,
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, _) {
-                final current = _controller.hasClients && _controller.page != null
-                    ? _controller.page!.round()
-                    : 0;
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    slides.length,
-                        (i) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 100),
-                      margin: const EdgeInsets.symmetric(horizontal: 5),
-                      width: i == current ? 22 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: i == current ? AppColors.primaryBlue : AppColors.mutedText,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                    ),
-                  ),
-                );
-              },
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFFF0F4FF) : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
             ),
+            child: Icon(icon, color: isSelected ? const Color(0xFF1A56DB) : const Color(0xFF94A3B8), size: 26),
           ),
+          const SizedBox(height: 4),
+          Text(label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? const Color(0xFF1A56DB) : const Color(0xFF94A3B8),
+              )),
         ],
       ),
     );
   }
 }
-
-// Custom Painters - unchanged and working
-class MountainSecurePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.primaryBlue.withOpacity(0.6)
-      ..strokeWidth = 5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final path = Path()
-      ..moveTo(0, size.height)
-      ..lineTo(size.width * 0.4, size.height * 0.3)
-      ..lineTo(size.width * 0.7, size.height * 0.5)
-      ..lineTo(size.width, size.height * 0.2)
-      ..lineTo(size.width, size.height);
-
-    canvas.drawPath(path, paint);
-
-    final shieldPath = Path()
-      ..moveTo(size.width * 0.5, size.height * 0.3)
-      ..lineTo(size.width * 0.5 - 16, size.height * 0.45)
-      ..lineTo(size.width * 0.5, size.height * 0.6)
-      ..lineTo(size.width * 0.5 + 16, size.height * 0.45)
-      ..close();
-    canvas.drawPath(shieldPath, paint..style = PaintingStyle.fill);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class ShieldAlertPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.dangerRed.withOpacity(0.7)
-      ..strokeWidth = 5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawCircle(Offset(size.width / 2, size.height / 2 - 8), 24, paint);
-    canvas.drawLine(Offset(size.width / 2, size.height / 2 - 20), Offset(size.width / 2, size.height / 2 + 4), paint..strokeWidth = 7);
-    canvas.drawCircle(Offset(size.width / 2, size.height / 2 + 16), 7, paint..style = PaintingStyle.fill);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class NetworkTrustPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.primaryBlue.withOpacity(0.6)
-      ..strokeWidth = 3;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    canvas.drawCircle(center, 12, paint..style = PaintingStyle.fill);
-
-    for (int i = 0; i < 5; i++) {
-      final angle = i * 2 * pi / 5;
-      final dx = center.dx + 36 * cos(angle);
-      final dy = center.dy + 36 * sin(angle);
-      canvas.drawCircle(Offset(dx, dy), 10, paint..style = PaintingStyle.fill);
-      canvas.drawLine(center, Offset(dx, dy), paint..style = PaintingStyle.stroke);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-

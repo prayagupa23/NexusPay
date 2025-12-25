@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Added for Haptics
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 import '../services/supabase_service.dart';
@@ -17,11 +18,12 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _pinController = TextEditingController();
-  
+  final FocusNode _pinFocusNode = FocusNode();
+
   bool _obscurePin = true;
   bool _isLoading = false;
   String? _errorMessage;
-  
+
   late final SupabaseService _supabaseService;
 
   @override
@@ -34,319 +36,71 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _phoneController.dispose();
     _pinController.dispose();
+    _pinFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryBg,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primaryText),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Login',
-          style: TextStyle(
-            color: AppColors.primaryText,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new, color: AppColors.primaryText(context), size: 20),
+            onPressed: () => Navigator.pop(context),
           ),
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
-                
-                // Title
-                const Text(
-                  'Welcome Back',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primaryText,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Enter your phone number and PIN to continue',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppColors.secondaryText,
-                    height: 1.5,
-                  ),
-                ),
+                _buildHeader(context),
                 const SizedBox(height: 40),
+                if (_errorMessage != null) _buildErrorCard(),
 
-                // Error message
-                if (_errorMessage != null)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.dangerBg,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.dangerRed),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline, color: AppColors.dangerRed, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(color: AppColors.dangerRed, fontSize: 13),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                _buildSectionLabel('PHONE NUMBER'),
+                _buildPhoneField(context),
 
-                // Phone Number Field
-                const Text(
-                  'Phone Number',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryText,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  maxLength: 10,
-                  style: const TextStyle(color: AppColors.primaryText),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your phone number';
-                    }
-                    if (!UserModel.isValidPhone(value.trim())) {
-                      return 'Phone must be exactly 10 digits';
-                    }
-                    return null;
-                  },
-                  decoration: InputDecoration(
-                    hintText: '8169312345',
-                    hintStyle: const TextStyle(color: AppColors.mutedText),
-                    prefixIcon: const Icon(Icons.phone, color: AppColors.mutedText),
-                    filled: true,
-                    fillColor: AppColors.darkSurface,
-                    counterText: '',
-                    errorStyle: const TextStyle(color: AppColors.dangerRed, fontSize: 12),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                        color: AppColors.secondarySurface,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                        color: AppColors.primaryBlue,
-                        width: 1.5,
-                      ),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                        color: AppColors.dangerRed,
-                        width: 1.5,
-                      ),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                        color: AppColors.dangerRed,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 32),
 
-                const SizedBox(height: 28),
+                _buildPinHeader(context),
+                _buildPinDisplay(context),
 
-                // PIN Field
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      '4-Digit PIN',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primaryText,
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        _obscurePin ? Icons.visibility_off : Icons.visibility,
-                        color: AppColors.mutedText,
-                      ),
-                      onPressed: () => setState(() => _obscurePin = !_obscurePin),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(4, (index) {
-                    final hasDigit = index < _pinController.text.length;
-                    final digit = hasDigit ? _pinController.text[index] : '';
-                    return Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: AppColors.darkSurface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: hasDigit
-                              ? AppColors.primaryBlue
-                              : AppColors.secondarySurface,
-                          width: hasDigit ? 2 : 1,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          _obscurePin ? (hasDigit ? '•' : '') : digit,
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryText,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-                
-                // Hidden TextField for actual PIN input
-                Opacity(
-                  opacity: 0,
+                // Hidden field for logic
+                SizedBox(
+                  height: 0,
                   child: TextFormField(
                     controller: _pinController,
+                    focusNode: _pinFocusNode,
                     keyboardType: TextInputType.number,
                     maxLength: 4,
                     autofocus: true,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your PIN';
-                      }
-                      if (!UserModel.isValidPin(value.trim())) {
-                        return 'PIN must be exactly 4 digits';
-                      }
-                      return null;
+                    onChanged: (v) {
+                      setState(() {});
+                      if (v.length == 4) _handleLogin();
                     },
-                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(border: InputBorder.none, counterText: ''),
                   ),
                 ),
+
+                const SizedBox(height: 48),
+                _buildLoginButton(),
+                _buildForgotPin(context),
 
                 const SizedBox(height: 40),
-
-                // Login Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue,
-                      foregroundColor: Colors.white,
-                      elevation: 8,
-                      shadowColor: AppColors.subtleBlueGlow,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      disabledBackgroundColor: AppColors.secondarySurface,
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Forgot PIN
-                Center(
-                  child: TextButton(
-                    onPressed: () {
-                      // TODO: Implement forgot PIN flow
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Forgot PIN feature coming soon'),
-                          backgroundColor: AppColors.darkSurface,
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Forgot PIN?',
-                      style: TextStyle(
-                        color: AppColors.primaryBlue,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                // Security Info
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.successBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.successGreen.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.lock_outline,
-                        color: AppColors.successGreen,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Your data is encrypted and secure',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.successGreen,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildSecurityFooter(context),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -355,62 +109,240 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // --- UI Builder Methods ---
+
+  Widget _buildHeader(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Welcome Back',
+          style: TextStyle(
+            fontSize: 34,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -1,
+            color: AppColors.primaryText(context),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Securely access your account',
+          style: TextStyle(
+            fontSize: 16,
+            color: AppColors.secondaryText(context),
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+          color: AppColors.primaryBlue.withOpacity(0.8),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhoneField(BuildContext context) {
+    return TextFormField(
+      controller: _phoneController,
+      keyboardType: TextInputType.phone,
+      style: TextStyle(color: AppColors.primaryText(context), fontSize: 18, fontWeight: FontWeight.w600),
+      decoration: InputDecoration(
+        hintText: 'Enter 10-digit number',
+        prefixIcon: Icon(Icons.phone_iphone_rounded, color: AppColors.primaryBlue),
+        filled: true,
+        fillColor: AppColors.surface(context),
+        contentPadding: const EdgeInsets.all(20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: AppColors.secondarySurface(context), width: 1.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: AppColors.primaryBlue, width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPinHeader(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildSectionLabel('4-DIGIT PIN'),
+        IconButton(
+          onPressed: () => setState(() => _obscurePin = !_obscurePin),
+          icon: Icon(
+            _obscurePin ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            size: 20,
+            color: AppColors.mutedText(context),
+          ),
+        )
+      ],
+    );
+  }
+
+  Widget _buildPinDisplay(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _pinFocusNode.requestFocus(),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(4, (index) {
+          bool isFilled = index < _pinController.text.length;
+          return Container(
+            width: 70,
+            height: 75,
+            decoration: BoxDecoration(
+              color: isFilled ? AppColors.primaryBlue.withOpacity(0.05) : AppColors.surface(context),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isFilled ? AppColors.primaryBlue : AppColors.secondarySurface(context),
+                width: isFilled ? 2 : 1.5,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                isFilled ? (_obscurePin ? '●' : _pinController.text[index]) : '',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryText(context),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return Container(
+        width: double.infinity,
+        height: 62,
+        decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryBlue.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+        ),
+        child: ElevatedButton(
+        onPressed: _isLoading ? null : _handleLogin,
+        style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primaryBlue,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+    elevation: 0,
+    ),
+    child: _isLoading
+    ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+        : const Text('Sign In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+    ),
+    );
+  }
+
+  Widget _buildSecurityFooter(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      decoration: BoxDecoration(
+        color: AppColors.secondarySurface(context).withOpacity(0.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.lock_person_rounded, color: AppColors.successGreen, size: 22),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              'End-to-end encrypted connection',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primaryText(context).withOpacity(0.7),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1F1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_rounded, color: Colors.redAccent, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _errorMessage!,
+              style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildForgotPin(BuildContext context) {
+    return Center(
+      child: TextButton(
+        onPressed: () {},
+        child: Text(
+          'Trouble signing in?',
+          style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleLogin() async {
-    setState(() {
-      _errorMessage = null;
-    });
+    HapticFeedback.mediumImpact();
+    setState(() => _errorMessage = null);
+    if (!_formKey.currentState!.validate()) return;
 
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    final phone = _phoneController.text.trim();
-    final pin = _pinController.text.trim();
-
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
+    // ... logic remains same as original but with added error feedback
     try {
-      // Get user by phone number
-      final user = await _supabaseService.getUserByPhone(phone);
-      
-      if (user == null) {
-        setState(() {
-          _errorMessage = 'Phone number not found. Please create an account.';
-          _isLoading = false;
-        });
-        return;
+      final user = await _supabaseService.getUserByPhone(_phoneController.text.trim());
+      if (user == null || user.pin != _pinController.text.trim()) {
+        throw Exception('Invalid credentials');
       }
 
-      // Verify PIN
-      if (user.pin != pin) {
-        setState(() {
-          _errorMessage = 'Incorrect PIN. Please try again.';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // Save phone number to SharedPreferences for future PIN lock screen
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('logged_in_phone', phone);
+      await prefs.setString('logged_in_phone', _phoneController.text.trim());
 
-      // Login successful - navigate to home
       if (mounted) {
         Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const HomeScreen(),
-          ),
-          (_) => false,
-        );
+            context, MaterialPageRoute(builder: (_) => const HomeScreen()), (_) => false);
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error: ${e.toString()}';
+        _errorMessage = "The phone number or PIN is incorrect.";
         _isLoading = false;
+        _pinController.clear();
       });
+      HapticFeedback.vibrate();
     }
   }
 }

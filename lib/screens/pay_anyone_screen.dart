@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
-import '../tile/avatar_tile.dart'; // ContactAvatar
+import '../tile/avatar_tile.dart';
 import 'payment_screen.dart';
 import '../services/supabase_service.dart';
 import '../utils/supabase_config.dart';
@@ -18,36 +18,30 @@ class PayScreen extends StatefulWidget {
 class _PayScreenState extends State<PayScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  
+
   late final SupabaseService _supabaseService;
   List<UserModel> _trustedContacts = [];
   List<TransactionModel> _recentTransactions = [];
   bool _isLoading = true;
 
-  // Combine all data once for unified search
   List<Map<String, String>> get allContacts {
     final contacts = <Map<String, String>>[];
     final seenUpis = <String>{};
-    
-    // Add recent payments (from transactions) - these are already in recentPayments getter
+
     for (var payment in recentPayments) {
       if (!seenUpis.contains(payment["upi"]!)) {
         seenUpis.add(payment["upi"]!);
         contacts.add(payment);
       }
     }
-    
-    // Add trusted contacts
+
     for (var user in _trustedContacts) {
       if (!seenUpis.contains(user.upiId)) {
         seenUpis.add(user.upiId);
-        contacts.add({
-          "name": user.fullName,
-          "upi": user.upiId,
-        });
+        contacts.add({"name": user.fullName, "upi": user.upiId});
       }
     }
-    
+
     return contacts;
   }
 
@@ -58,9 +52,7 @@ class _PayScreenState extends State<PayScreen> {
     _loadData();
 
     _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text.trim();
-      });
+      setState(() => _searchQuery = _searchController.text.trim());
     });
   }
 
@@ -72,25 +64,9 @@ class _PayScreenState extends State<PayScreen> {
       if (phoneNumber != null) {
         final user = await _supabaseService.getUserByPhone(phoneNumber);
         if (user != null && user.userId != null) {
-          // Load recent transactions
-          final transactions = await _supabaseService.getUserTransactions(
-            user.userId!,
-            limit: 5,
-          );
-          
-          // Get unique receiver UPIs from recent transactions
-          final recentReceiverUpis = transactions
-              .map((t) => t.receiverUpi)
-              .toSet()
-              .toList();
-
-          // Load all users for trusted contacts
+          final transactions = await _supabaseService.getUserTransactions(user.userId!, limit: 5);
           final allUsers = await _supabaseService.getAllUsers();
-          
-          // Filter out current user
-          final contacts = allUsers
-              .where((u) => u.phoneNumber != phoneNumber)
-              .toList();
+          final contacts = allUsers.where((u) => u.phoneNumber != phoneNumber).toList();
 
           if (mounted) {
             setState(() {
@@ -99,26 +75,10 @@ class _PayScreenState extends State<PayScreen> {
               _isLoading = false;
             });
           }
-        } else {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-          }
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
         }
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -130,111 +90,79 @@ class _PayScreenState extends State<PayScreen> {
 
   List<Map<String, String>> get _searchResults {
     if (_searchQuery.isEmpty) return [];
-
     final query = _searchQuery.toLowerCase();
     return allContacts.where((item) {
-      final name = item["name"]!.toLowerCase();
-      final upi = item["upi"]!.toLowerCase();
-      return name.contains(query) || upi.contains(query);
+      return item["name"]!.toLowerCase().contains(query) || item["upi"]!.toLowerCase().contains(query);
     }).toList();
   }
 
   List<Map<String, String>> get recentPayments {
-    // Get unique recent payments from transactions
     final seen = <String>{};
     final payments = <Map<String, String>>[];
-    
     for (var txn in _recentTransactions) {
       if (!seen.contains(txn.receiverUpi)) {
         seen.add(txn.receiverUpi);
-        
-        // Try to find user in trusted contacts first
-        UserModel? user;
-        try {
-          user = _trustedContacts.firstWhere(
-            (u) => u.upiId == txn.receiverUpi,
-          );
-        } catch (e) {
-          // User not in trusted contacts, use UPI ID part as name
-          user = null;
-        }
-        
+        final user = _trustedContacts.firstWhereOrNull((u) => u.upiId == txn.receiverUpi);
         payments.add({
-          "name": user != null 
-              ? user.fullName.split(' ').first // First name only
-              : txn.receiverUpi.split('@').first, // Use UPI ID part as fallback
+          "name": user != null ? user.fullName : txn.receiverUpi.split('@').first,
           "upi": txn.receiverUpi,
         });
       }
     }
-    
     return payments;
-  }
-
-  List<Map<String, String>> get trustedContacts {
-    return _trustedContacts.map((user) => {
-      "name": user.fullName,
-      "upi": user.upiId,
-    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isSearching = _searchQuery.isNotEmpty;
-    final bool hasResults = _searchResults.isNotEmpty;
+    final isSearching = _searchQuery.isNotEmpty;
+    final hasResults = _searchResults.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.bg(context),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: AppColors.primaryText(context)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           "Pay",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: AppColors.primaryText(context), fontSize: 22, fontWeight: FontWeight.bold),
         ),
+        centerTitle: true,
       ),
       body: Column(
         children: [
-          // Search Bar
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
             child: TextField(
               controller: _searchController,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: AppColors.primaryText(context)),
               decoration: InputDecoration(
                 hintText: "Search any UPI ID",
-                hintStyle: const TextStyle(color: Colors.white54),
-                prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                hintStyle: TextStyle(color: AppColors.mutedText(context)),
+                prefixIcon: Icon(Icons.search, color: AppColors.mutedText(context)),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.1),
+                fillColor: AppColors.surface(context),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                   borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(color: AppColors.primaryBlue, width: 1.5),
+                  borderSide: BorderSide(color: AppColors.primaryBlue, width: 2),
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                contentPadding: const EdgeInsets.symmetric(vertical: 18),
               ),
             ),
           ),
-
-          // Full Grey Content Area
           Expanded(
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: AppColors.secondarySurface.withOpacity(0.85),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(0)),
+                color: AppColors.surface(context),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
               ),
               child: isSearching
                   ? _buildSearchView(hasResults)
@@ -246,25 +174,19 @@ class _PayScreenState extends State<PayScreen> {
     );
   }
 
-  // Search Mode: Show results or "No results"
   Widget _buildSearchView(bool hasResults) {
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 100),
       child: hasResults
           ? _buildGrid(_searchResults)
-          : const Center(
+          : Center(
         child: Column(
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.white38),
-            SizedBox(height: 16),
+            Icon(Icons.search_off, size: 80, color: AppColors.mutedText(context)),
+            const SizedBox(height: 20),
             Text(
               "No results found",
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(color: AppColors.secondaryText(context), fontSize: 18, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -272,49 +194,36 @@ class _PayScreenState extends State<PayScreen> {
     );
   }
 
-  // Default Mode: Full sections
   Widget _buildDefaultSections() {
     return _isLoading
-        ? const Center(
-            child: Padding(
-              padding: EdgeInsets.all(40.0),
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
-              ),
-            ),
-          )
+        ? Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(AppColors.primaryBlue)))
         : SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (recentPayments.isNotEmpty)
-                  _buildSection("Recent Payments", recentPayments),
-                if (trustedContacts.isNotEmpty)
-                  _buildSection("Trusted Contacts", trustedContacts),
-              ],
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (recentPayments.isNotEmpty) _buildSection("Recent Payments", recentPayments),
+          if (_trustedContacts.isNotEmpty)
+            _buildSection(
+              "Trusted Contacts",
+              _trustedContacts.map((u) => {"name": u.fullName, "upi": u.upiId}).toList(),
             ),
-          );
+        ],
+      ),
+    );
   }
 
   Widget _buildSection(String title, List<Map<String, String>> contacts) {
-    if (contacts.isEmpty) return const SizedBox.shrink();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.primaryText,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.primaryText(context)),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         _buildGrid(contacts),
-        const SizedBox(height: 32),
+        const SizedBox(height: 40),
       ],
     );
   }
@@ -322,14 +231,14 @@ class _PayScreenState extends State<PayScreen> {
   Widget _buildGrid(List<Map<String, String>> contacts) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const int columns = 4;
-        const double spacing = 20.0;
-        final double totalSpacing = spacing * (columns - 1);
-        final double itemWidth = (constraints.maxWidth - totalSpacing) / columns;
+        const columns = 4;
+        const spacing = 24.0;
+        final totalSpacing = spacing * (columns - 1);
+        final itemWidth = (constraints.maxWidth - totalSpacing) / columns;
 
         return Wrap(
           spacing: spacing,
-          runSpacing: 20,
+          runSpacing: 32,
           children: contacts.map((contact) {
             return SizedBox(
               width: itemWidth,
@@ -352,5 +261,15 @@ class _PayScreenState extends State<PayScreen> {
         );
       },
     );
+  }
+}
+
+// Helper extension
+extension FirstWhereOrNull<E> on Iterable<E> {
+  E? firstWhereOrNull(bool Function(E) test) {
+    for (E element in this) {
+      if (test(element)) return element;
+    }
+    return null;
   }
 }

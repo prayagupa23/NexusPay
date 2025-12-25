@@ -1,5 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_colors.dart';
 
 class PaymentSuccessScreen extends StatefulWidget {
@@ -9,308 +11,218 @@ class PaymentSuccessScreen extends StatefulWidget {
   final DateTime timestamp;
 
   const PaymentSuccessScreen({
-    Key? key,
+    super.key,
     required this.amount,
     required this.recipient,
     required this.transactionId,
     required this.timestamp,
-  }) : super(key: key);
+  });
 
   @override
   State<PaymentSuccessScreen> createState() => _PaymentSuccessScreenState();
 }
 
-class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-  bool _showContent = false;
-
+class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-    
-    _animation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    );
-
-    // Start animation after a short delay
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        _controller.forward();
-      }
-    });
-
-    // Show content after animation starts
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          _showContent = true;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+    // High-precision haptic feedback for a "solid" feel
+    HapticFeedback.mediumImpact();
   }
 
   @override
   Widget build(BuildContext context) {
     final formattedDate = '${widget.timestamp.day}/${widget.timestamp.month}/${widget.timestamp.year}';
-    final formattedTime = '${widget.timestamp.hour}:${widget.timestamp.minute.toString().padLeft(2, '0')}';
+    final formattedTime =
+        '${widget.timestamp.hour}:${widget.timestamp.minute.toString().padLeft(2, '0')}';
 
     return Scaffold(
-      backgroundColor: AppColors.primaryBg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primaryText),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Transfer',
-          style: TextStyle(
-            color: AppColors.primaryText,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share_outlined, color: AppColors.primaryText),
-            onPressed: () {
-              // TODO: Implement share functionality
-            },
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
+      backgroundColor: AppColors.bg(context),
+      body: SafeArea(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Animated Success Icon
-            ScaleTransition(
-              scale: _animation,
-              child: FadeTransition(
-                opacity: _animation,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: AppColors.successGreen.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_circle,
-                    color: AppColors.successGreen,
-                    size: 60,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            
-            // Amount with fade animation
-            AnimatedOpacity(
-              opacity: _showContent ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 500),
-              child: Text(
-                '₹${widget.amount}',
-                style: const TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Success Message with fade animation
-            AnimatedOpacity(
-              opacity: _showContent ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 500),
-              child: const Text(
-                'Payment Success',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 8),
-            
-            // Recipient with fade animation
-            AnimatedOpacity(
-              opacity: _showContent ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 500),
-              child: Text(
-                'to ${widget.recipient}',
-                style: const TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 40),
-            
-            // Transaction Details with slide-up animation
-            AnimatedOpacity(
-              opacity: _showContent ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 500),
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.5),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: _controller,
-                  curve: Curves.easeOutCubic,
-                )),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.darkSurface,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildDetailRow('Date', formattedDate),
-                      const Divider(color: AppColors.secondarySurface, height: 24),
-                      _buildDetailRow('Time', formattedTime),
-                      const Divider(color: AppColors.secondarySurface, height: 24),
-                      _buildDetailRow('Transaction ID', widget.transactionId),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // View Details Link with fade animation
-            AnimatedOpacity(
-              opacity: _showContent ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 500),
-              child: TextButton(
-                onPressed: () {
-                  // TODO: Navigate to transaction details
-                },
-                child: const Text(
-                  'View Details',
-                  style: TextStyle(
-                    color: AppColors.primaryBlue,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-            
-            const Spacer(),
-            
-            // Action Buttons with slide-up animation
-            AnimatedOpacity(
-              opacity: _showContent ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 500),
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.5),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: _controller,
-                  curve: Curves.easeOutCubic,
-                )),
-                child: Row(
+            _buildAppBar(),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
                   children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          // TODO: Handle Pay Again
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: const BorderSide(color: AppColors.primaryBlue),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Pay Again',
-                          style: TextStyle(
-                            color: AppColors.primaryBlue,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // Navigate to home or previous screen
-                          Navigator.of(context).popUntil((route) => route.isFirst);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryBlue,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Done',
-                          style: TextStyle(
-                            color: AppColors.primaryText,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 60),
+                    _buildFormalTick(),
+                    const SizedBox(height: 40),
+                    _buildAmountSection(),
+                    const SizedBox(height: 40),
+                    _buildTransactionTable(formattedDate, formattedTime),
                   ],
                 ),
               ),
             ),
+            _buildBottomBar(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.secondaryText,
-            fontSize: 14,
-          ),
+  Widget _buildAppBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Text(
+        "TRANSACTION RECEIPT",
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 3,
+          color: AppColors.secondaryText(context),
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            color: AppColors.primaryText,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+
+  Widget _buildFormalTick() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Outer rigid ring
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: AppColors.successGreen.withOpacity(0.2),
+              width: 1,
+            ),
           ),
+        ).animate().scale(duration: 400.ms, curve: Curves.easeOut),
+
+        // Inner check - Fixed "backOut" by using easeOut (Formal)
+        Icon(
+          Icons.check_circle_rounded,
+          color: AppColors.successGreen,
+          size: 80,
+        ).animate().fadeIn(duration: 300.ms).scale(
+          begin: const Offset(0.7, 0.7),
+          end: const Offset(1.0, 1.0),
+          duration: 500.ms,
+          curve: Curves.easeOutCubic,
         ),
       ],
+    );
+  }
+
+  Widget _buildAmountSection() {
+    return Column(
+      children: [
+        Text(
+          "₹ ${widget.amount}",
+          style: TextStyle(
+            fontSize: 48,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryText(context),
+            letterSpacing: -1,
+          ),
+        ).animate().fadeIn(delay: 200.ms),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.verified_user, size: 16, color: AppColors.successGreen),
+            const SizedBox(width: 8),
+            Text(
+              "SENT TO ${widget.recipient.toUpperCase()}",
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.secondaryText(context),
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ).animate().fadeIn(delay: 400.ms),
+      ],
+    );
+  }
+
+  Widget _buildTransactionTable(String date, String time) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.secondarySurface(context)),
+      ),
+      child: Column(
+        children: [
+          _buildInfoRow("Reference Number", widget.transactionId),
+          _divider(),
+          _buildInfoRow("Status", "Success", isStatus: true),
+          _divider(),
+          _buildInfoRow("Date", date),
+          _divider(),
+          _buildInfoRow("Time", time),
+        ],
+      ),
+    ).animate().slideY(begin: 0.1, end: 0, delay: 600.ms).fadeIn();
+  }
+
+  Widget _buildInfoRow(String label, String value, {bool isStatus = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.secondaryText(context),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: isStatus ? AppColors.successGreen : AppColors.primaryText(context),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _divider() => Divider(height: 24, color: AppColors.secondarySurface(context), thickness: 0.5);
+
+  Widget _buildBottomBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryBlue,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 0,
+          ),
+          child: const Text(
+            "CONTINUE",
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

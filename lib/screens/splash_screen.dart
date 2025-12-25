@@ -19,8 +19,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-    // Wait a bit for splash effect
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(seconds: 1));
 
     final prefs = await SharedPreferences.getInstance();
     final loggedInPhone = prefs.getString('logged_in_phone');
@@ -28,20 +27,14 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (loggedInPhone != null && loggedInPhone.isNotEmpty) {
-      // User is logged in - show PIN lock screen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => PinLockScreen(phoneNumber: loggedInPhone),
-        ),
+        MaterialPageRoute(builder: (_) => PinLockScreen(phoneNumber: loggedInPhone)),
       );
     } else {
-      // User is not logged in - show auth choice screen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const AuthChoiceScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
       );
     }
   }
@@ -49,45 +42,31 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryBg,
+      backgroundColor: AppColors.bg(context),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 120,
-              height: 120,
+              width: 140,
+              height: 140,
               decoration: BoxDecoration(
                 color: AppColors.primaryBlue.withOpacity(0.2),
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.primaryBlue,
-                  width: 3,
-                ),
+                border: Border.all(color: AppColors.primaryBlue, width: 4),
               ),
-              child: const Icon(
-                Icons.account_balance_wallet_rounded,
-                size: 60,
-                color: AppColors.primaryBlue,
-              ),
+              child: Icon(Icons.account_balance_wallet_rounded, size: 72, color: AppColors.primaryBlue),
             ),
-            const SizedBox(height: 24),
-            const Text(
+            const SizedBox(height: 32),
+            Text(
               'Heisenbug',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryText,
-              ),
+              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.primaryText(context)),
             ),
-            const SizedBox(height: 40),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
-            ),
+            const SizedBox(height: 48),
+            CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(AppColors.primaryBlue)),
           ],
         ),
       ),
     );
   }
 }
-
