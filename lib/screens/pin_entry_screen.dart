@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import '../theme/app_colors.dart';
 import 'payment_success_screen.dart';
+import '../services/supabase_service.dart';
+import '../utils/supabase_config.dart';
+import '../models/user_model.dart';
 
 class PinEntryScreen extends StatefulWidget {
   final String amount;
   final String bankName;
   final String recipientName;
+  final String recipientUpiId;
 
   const PinEntryScreen({
     super.key,
     required this.amount,
     required this.bankName,
     required this.recipientName,
+    required this.recipientUpiId,
   });
 
   @override
@@ -20,29 +27,108 @@ class PinEntryScreen extends StatefulWidget {
 
 class _PinEntryScreenState extends State<PinEntryScreen> {
   String _pin = "";
+  bool _isProcessing = false;
+  String? _errorMessage;
+  
+  late final SupabaseService _supabaseService;
+  final _uuid = const Uuid();
+
+  @override
+  void initState() {
+    super.initState();
+    _supabaseService = SupabaseService(SupabaseConfig.client);
+  }
+
+  Future<void> _processPayment() async {
+    if (_pin.length != 4) return;
+
+    setState(() {
+      _isProcessing = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Get logged-in user
+      final prefs = await SharedPreferences.getInstance();
+      final phoneNumber = prefs.getString('logged_in_phone');
+
+      if (phoneNumber == null) {
+        throw 'User not logged in';
+      }
+
+      final user = await _supabaseService.getUserByPhone(phoneNumber);
+      if (user == null || user.userId == null) {
+        throw 'User not found';
+      }
+
+      // Verify PIN
+      if (_pin != user.pin) {
+        setState(() {
+          _errorMessage = 'Incorrect PIN';
+          _isProcessing = false;
+          _pin = '';
+        });
+        return;
+      }
+
+      // Generate device ID (could be stored in SharedPreferences)
+      final deviceId = _uuid.v4();
+
+      // Process payment
+      final amount = double.parse(widget.amount);
+      final transaction = await _supabaseService.processPayment(
+        userId: user.userId!,
+        receiverUpi: widget.recipientUpiId,
+        amount: amount,
+        deviceId: deviceId,
+        location: null, // Can be added later with location services
+      );
+
+      // Navigate to success screen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PaymentSuccessScreen(
+              amount: widget.amount,
+              recipient: widget.recipientName,
+              transactionId: transaction.utrReference ?? transaction.id ?? 'TXN${DateTime.now().millisecondsSinceEpoch}',
+              timestamp: transaction.createdAt ?? DateTime.now(),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isProcessing = false;
+        _pin = '';
+      });
+    }
+  }
 
   void _onKeyPress(String value) {
+    if (_isProcessing) return;
+    
     setState(() {
+      _errorMessage = null;
+      
       if (value == 'backspace') {
         if (_pin.isNotEmpty) {
           _pin = _pin.substring(0, _pin.length - 1);
         }
       } else if (value == 'submit') {
         if (_pin.length == 4) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PaymentSuccessScreen(
-                amount: widget.amount,
-                recipient: widget.recipientName,
-                transactionId: 'TXN${DateTime.now().millisecondsSinceEpoch}',
-                timestamp: DateTime.now(),
-              ),
-            ),
-          );
+          _processPayment();
         }
       } else if (_pin.length < 4) {
         _pin += value;
+        // Auto-submit when 4 digits are entered
+        if (_pin.length == 4) {
+          Future.delayed(const Duration(milliseconds: 200), () {
+            _processPayment();
+          });
+        }
       }
     });
   }
@@ -152,6 +238,38 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
               );
             }),
           ),
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.symmetric(horizontal: 40),
+              decoration: BoxDecoration(
+                color: AppColors.dangerBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.dangerRed),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: AppColors.dangerRed, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: AppColors.dangerRed, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (_isProcessing) ...[
+            const SizedBox(height: 20),
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
+            ),
+          ],
         ],
       ),
     );

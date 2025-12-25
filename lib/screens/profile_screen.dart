@@ -29,6 +29,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadProfile();
   }
 
+  // Reload profile when screen comes back into focus
+  Future<void> _reloadProfile() async {
+    await _loadProfile();
+  }
+
   Future<void> _loadProfile() async {
     try {
       final prefs = await SharedPreferences.getInstance();

@@ -388,6 +388,7 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
                               amount: widget.amount,
                               bankName: _selectedAccount['name']!,
                               recipientName: widget.name,
+                              recipientUpiId: widget.upiId,
                             ),
                           ),
                         );

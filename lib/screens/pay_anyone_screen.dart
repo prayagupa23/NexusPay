@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 import '../tile/avatar_tile.dart'; // ContactAvatar
 import 'payment_screen.dart';
+import '../services/supabase_service.dart';
+import '../utils/supabase_config.dart';
+import '../models/user_model.dart';
+import '../models/transaction_model.dart';
 
 class PayScreen extends StatefulWidget {
   const PayScreen({super.key});
@@ -13,49 +18,108 @@ class PayScreen extends StatefulWidget {
 class _PayScreenState extends State<PayScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  
+  late final SupabaseService _supabaseService;
+  List<UserModel> _trustedContacts = [];
+  List<TransactionModel> _recentTransactions = [];
+  bool _isLoading = true;
 
   // Combine all data once for unified search
-  late final List<Map<String, String>> allContacts;
-
-  final List<Map<String, String>> recentPayments = [
-    {"name": "Parth", "upi": "814329@fam"},
-    {"name": "Rahul", "upi": "rahul@upi"},
-    {"name": "Sneha", "upi": "sneha@upi"},
-    {"name": "Riya", "upi": "riya@upi"},
-  ];
-
-  final List<Map<String, String>> trustedContacts = [
-    {"name": "Parth S Salunke", "upi": "814329@fam"},
-    {"name": "Rahul Patil", "upi": "rahul@upi"},
-    {"name": "Amit Shah", "upi": "amit@ybl"},
-    {"name": "Sneha Kulkarni", "upi": "sneha@upi"},
-    {"name": "Riya Mehta", "upi": "riya@upi"},
-    {"name": "Om Deshmukh", "upi": "om@upi"},
-    {"name": "Kunal Jain", "upi": "kunal@upi"},
-  ];
-
-  final List<Map<String, String>> businesses = [
-    {"name": "Amazon", "upi": "amazon@upi"},
-    {"name": "Swiggy", "upi": "swiggy@upi"},
-    {"name": "Netflix", "upi": "netflix@upi"},
-    {"name": "Electricity Bill", "upi": "electricity@upi"},
-    {"name": "Zomato", "upi": "zomato@upi"},
-    {"name": "Uber", "upi": "uber@upi"},
-    {"name": "Flipkart", "upi": "flipkart@upi"},
-    {"name": "PhonePe", "upi": "phonepe@upi"},
-  ];
+  List<Map<String, String>> get allContacts {
+    final contacts = <Map<String, String>>[];
+    final seenUpis = <String>{};
+    
+    // Add recent payments (from transactions) - these are already in recentPayments getter
+    for (var payment in recentPayments) {
+      if (!seenUpis.contains(payment["upi"]!)) {
+        seenUpis.add(payment["upi"]!);
+        contacts.add(payment);
+      }
+    }
+    
+    // Add trusted contacts
+    for (var user in _trustedContacts) {
+      if (!seenUpis.contains(user.upiId)) {
+        seenUpis.add(user.upiId);
+        contacts.add({
+          "name": user.fullName,
+          "upi": user.upiId,
+        });
+      }
+    }
+    
+    return contacts;
+  }
 
   @override
   void initState() {
     super.initState();
-    // Combine all contacts once
-    allContacts = [...recentPayments, ...trustedContacts, ...businesses];
+    _supabaseService = SupabaseService(SupabaseConfig.client);
+    _loadData();
 
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.trim();
       });
     });
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final phoneNumber = prefs.getString('logged_in_phone');
+
+      if (phoneNumber != null) {
+        final user = await _supabaseService.getUserByPhone(phoneNumber);
+        if (user != null && user.userId != null) {
+          // Load recent transactions
+          final transactions = await _supabaseService.getUserTransactions(
+            user.userId!,
+            limit: 5,
+          );
+          
+          // Get unique receiver UPIs from recent transactions
+          final recentReceiverUpis = transactions
+              .map((t) => t.receiverUpi)
+              .toSet()
+              .toList();
+
+          // Load all users for trusted contacts
+          final allUsers = await _supabaseService.getAllUsers();
+          
+          // Filter out current user
+          final contacts = allUsers
+              .where((u) => u.phoneNumber != phoneNumber)
+              .toList();
+
+          if (mounted) {
+            setState(() {
+              _trustedContacts = contacts;
+              _recentTransactions = transactions;
+              _isLoading = false;
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -72,6 +136,45 @@ class _PayScreenState extends State<PayScreen> {
       final name = item["name"]!.toLowerCase();
       final upi = item["upi"]!.toLowerCase();
       return name.contains(query) || upi.contains(query);
+    }).toList();
+  }
+
+  List<Map<String, String>> get recentPayments {
+    // Get unique recent payments from transactions
+    final seen = <String>{};
+    final payments = <Map<String, String>>[];
+    
+    for (var txn in _recentTransactions) {
+      if (!seen.contains(txn.receiverUpi)) {
+        seen.add(txn.receiverUpi);
+        
+        // Try to find user in trusted contacts first
+        UserModel? user;
+        try {
+          user = _trustedContacts.firstWhere(
+            (u) => u.upiId == txn.receiverUpi,
+          );
+        } catch (e) {
+          // User not in trusted contacts, use UPI ID part as name
+          user = null;
+        }
+        
+        payments.add({
+          "name": user != null 
+              ? user.fullName.split(' ').first // First name only
+              : txn.receiverUpi.split('@').first, // Use UPI ID part as fallback
+          "upi": txn.receiverUpi,
+        });
+      }
+    }
+    
+    return payments;
+  }
+
+  List<Map<String, String>> get trustedContacts {
+    return _trustedContacts.map((user) => {
+      "name": user.fullName,
+      "upi": user.upiId,
     }).toList();
   }
 
@@ -171,18 +274,28 @@ class _PayScreenState extends State<PayScreen> {
 
   // Default Mode: Full sections
   Widget _buildDefaultSections() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSection("Recent Payments", recentPayments),
-          _buildSection("Trusted Contacts", trustedContacts),
-          _buildSection("Businesses", businesses),
-        ],
-      ),
-    );
+    return _isLoading
+        ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40.0),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
+              ),
+            ),
+          )
+        : SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (recentPayments.isNotEmpty)
+                  _buildSection("Recent Payments", recentPayments),
+                if (trustedContacts.isNotEmpty)
+                  _buildSection("Trusted Contacts", trustedContacts),
+              ],
+            ),
+          );
   }
 
   Widget _buildSection(String title, List<Map<String, String>> contacts) {

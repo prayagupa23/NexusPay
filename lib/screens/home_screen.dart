@@ -2,11 +2,15 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:heisenbug/screens/pay_anyone_screen.dart';
 import '../theme/app_colors.dart';
 import 'contact_detail_screen.dart';
 import '../tile/avatar_tile.dart';
 import 'profile_screen.dart';
+import '../services/supabase_service.dart';
+import '../utils/supabase_config.dart';
+import '../models/user_model.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -80,13 +84,14 @@ class _AppBarSection extends StatelessWidget {
         const SizedBox(width: 28),
         const AnimatedAppTitle(),
         InkWell(
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => const ProfileScreen(),
               ),
             );
+            // Profile screen will reload when navigated back to
           },
           borderRadius: BorderRadius.circular(20),
           child: const CircleAvatar(
@@ -382,20 +387,55 @@ class _AlertCard extends StatelessWidget {
 
 // T R U S T E D  C O N T A C T S
 
-class _TrustedContacts extends StatelessWidget {
+class _TrustedContacts extends StatefulWidget {
   const _TrustedContacts();
 
   @override
+  State<_TrustedContacts> createState() => _TrustedContactsState();
+}
+
+class _TrustedContactsState extends State<_TrustedContacts> {
+  late final SupabaseService _supabaseService;
+  List<UserModel> _contacts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _supabaseService = SupabaseService(SupabaseConfig.client);
+    _loadContacts();
+  }
+
+  Future<void> _loadContacts() async {
+    try {
+      final allUsers = await _supabaseService.getAllUsers();
+      
+      // Get current user's phone number to exclude from contacts
+      final prefs = await SharedPreferences.getInstance();
+      final currentPhone = prefs.getString('logged_in_phone');
+      
+      // Filter out current user
+      final contacts = currentPhone != null
+          ? allUsers.where((user) => user.phoneNumber != currentPhone).toList()
+          : allUsers;
+
+      if (mounted) {
+        setState(() {
+          _contacts = contacts;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final contacts = [
-      {"name": "Parth S Salunke", "upi": "814329@fam"},
-      {"name": "Rahul Patil", "upi": "rahul@upi"},
-      {"name": "Amit Shah", "upi": "amit@ybl"},
-      {"name": "Sneha Kulkarni", "upi": "sneha@upi"},
-      {"name": "Riya Mehta", "upi": "riya@upi"},
-      {"name": "Om Deshmukh", "upi": "om@upi"},
-      {"name": "Kunal Jain", "upi": "kunal@upi"},
-    ];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -426,38 +466,60 @@ class _TrustedContacts extends StatelessWidget {
           const SizedBox(height: 20),
 
           // Safe Grid — NO OVERFLOW EVER
-          LayoutBuilder(
-            builder: (context, constraints) {
-              const int columns = 4;
-              const double spacing = 20.0;
-              final double totalSpacing = spacing * (columns - 1);
-              final double itemWidth = (constraints.maxWidth - totalSpacing) / columns;
-
-              return Wrap(
-                spacing: spacing,
-                runSpacing: 20,
-                children: contacts.map((c) {
-                  return SizedBox(
-                    width: itemWidth,
-                    child: ContactAvatar(
-                      name: c["name"]!,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ContactDetailScreen(
-                              name: c["name"]!,
-                              upiId: c["upi"]!,
-                            ),
+          _isLoading
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
+                    ),
+                  ),
+                )
+              : _contacts.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Text(
+                          'No contacts available',
+                          style: TextStyle(
+                            color: AppColors.mutedText,
+                            fontSize: 14,
                           ),
+                        ),
+                      ),
+                    )
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        const int columns = 4;
+                        const double spacing = 20.0;
+                        final double totalSpacing = spacing * (columns - 1);
+                        final double itemWidth = (constraints.maxWidth - totalSpacing) / columns;
+
+                        return Wrap(
+                          spacing: spacing,
+                          runSpacing: 20,
+                          children: _contacts.map((user) {
+                            return SizedBox(
+                              width: itemWidth,
+                              child: ContactAvatar(
+                                name: user.fullName,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ContactDetailScreen(
+                                        name: user.fullName,
+                                        upiId: user.upiId,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          }).toList(),
                         );
                       },
                     ),
-                  );
-                }).toList(),
-              );
-            },
-          ),
           const SizedBox(height: 32),
         ],
       ),

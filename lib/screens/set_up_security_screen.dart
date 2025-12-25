@@ -503,6 +503,7 @@ class _SetUpSecurityScreenState extends State<SetUpSecurityScreen> {
           city: createdUser.city,
           bankName: createdUser.bankName,
           honorScore: 100, // Default honor score
+          bankBalance: 10000.0, // Default initial balance
         );
 
         try {
