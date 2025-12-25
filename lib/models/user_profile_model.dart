@@ -6,6 +6,7 @@ class UserProfileModel {
   final String city;
   final String bankName;
   final int honorScore;
+  final double? bankBalance;
   final DateTime? profileCreatedAt;
   final DateTime? lastUpdatedAt;
 
@@ -17,6 +18,7 @@ class UserProfileModel {
     required this.city,
     required this.bankName,
     this.honorScore = 100,
+    this.bankBalance,
     this.profileCreatedAt,
     this.lastUpdatedAt,
   });
@@ -31,6 +33,7 @@ class UserProfileModel {
       'city': city,
       'bank_name': bankName,
       'honor_score': honorScore,
+      if (bankBalance != null) 'bank_balance': bankBalance,
       if (profileCreatedAt != null)
         'profile_created_at': profileCreatedAt!.toIso8601String(),
       if (lastUpdatedAt != null)
@@ -48,6 +51,11 @@ class UserProfileModel {
       city: map['city'] as String,
       bankName: map['bank_name'] as String,
       honorScore: map['honor_score'] as int? ?? 100,
+      bankBalance: map['bank_balance'] != null
+          ? (map['bank_balance'] is int
+              ? (map['bank_balance'] as int).toDouble()
+              : map['bank_balance'] as double?)
+          : null,
       profileCreatedAt: map['profile_created_at'] != null
           ? DateTime.parse(map['profile_created_at'] as String)
           : null,

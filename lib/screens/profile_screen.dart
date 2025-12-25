@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../services/supabase_service.dart';
 import '../utils/supabase_config.dart';
 import '../models/user_profile_model.dart';
+import '../models/user_model.dart';
 import 'auth_choice_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -16,7 +17,9 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late final SupabaseService _supabaseService;
   UserProfileModel? _profile;
+  UserModel? _user;
   bool _isLoading = true;
+  bool _isBalanceRevealed = false;
   String? _errorMessage;
 
   @override
@@ -40,10 +43,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       final profile = await _supabaseService.getUserProfileByPhone(phoneNumber);
+      final user = await _supabaseService.getUserByPhone(phoneNumber);
       
       if (mounted) {
         setState(() {
           _profile = profile;
+          _user = user;
           _isLoading = false;
         });
       }
@@ -288,6 +293,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: 12),
                           _buildDetailCard('Bank', _profile!.bankName),
                           const SizedBox(height: 12),
+                          _buildBankBalanceCard(),
+                          const SizedBox(height: 12),
                           _buildDetailCard(
                             'Member Since',
                             _profile!.profileCreatedAt != null
@@ -345,6 +352,243 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (score >= 70) return 'Good';
     if (score >= 50) return 'Fair';
     return 'Needs Improvement';
+  }
+
+  Widget _buildBankBalanceCard() {
+    return InkWell(
+      onTap: _isBalanceRevealed ? null : _showPinDialog,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.darkSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _isBalanceRevealed
+                ? AppColors.secondarySurface
+                : AppColors.primaryBlue.withOpacity(0.5),
+            width: _isBalanceRevealed ? 1 : 2,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: _isBalanceRevealed
+                      ? AppColors.primaryBlue
+                      : AppColors.mutedText,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Bank Balance',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.secondaryText,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _isBalanceRevealed
+                          ? _profile!.bankBalance != null
+                              ? '₹${_profile!.bankBalance!.toStringAsFixed(2)}'
+                              : '₹0.00'
+                          : 'Tap to reveal',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: _isBalanceRevealed
+                            ? AppColors.primaryText
+                            : AppColors.primaryBlue,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (!_isBalanceRevealed)
+              const Icon(
+                Icons.lock_outline,
+                color: AppColors.mutedText,
+                size: 20,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showPinDialog() async {
+    final pinController = TextEditingController();
+    bool obscurePin = true;
+    String? errorMessage;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: AppColors.darkSurface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text(
+              'Enter PIN',
+              style: TextStyle(
+                color: AppColors.primaryText,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Enter your PIN to view bank balance',
+                  style: TextStyle(
+                    color: AppColors.secondaryText,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // PIN Display
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(4, (index) {
+                    final hasDigit = index < pinController.text.length;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: hasDigit
+                            ? AppColors.primaryText
+                            : AppColors.secondarySurface,
+                        shape: BoxShape.circle,
+                      ),
+                    );
+                  }),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Error message
+                if (errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.dangerBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: AppColors.dangerRed, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            errorMessage!,
+                            style: const TextStyle(color: AppColors.dangerRed, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                
+                // Hidden TextField
+                Opacity(
+                  opacity: 0,
+                  child: TextField(
+                    controller: pinController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    autofocus: true,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        errorMessage = null;
+                      });
+                      if (value.length == 4) {
+                        _verifyPinForBalance(
+                          value,
+                          pinController,
+                          setDialogState,
+                          (msg) {
+                            setDialogState(() {
+                              errorMessage = msg;
+                            });
+                          },
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  pinController.dispose();
+                  Navigator.pop(context);
+                },
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: AppColors.mutedText),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  setDialogState(() {
+                    obscurePin = !obscurePin;
+                  });
+                },
+                child: Icon(
+                  obscurePin ? Icons.visibility_off : Icons.visibility,
+                  color: AppColors.mutedText,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _verifyPinForBalance(
+    String enteredPin,
+    TextEditingController pinController,
+    StateSetter setDialogState,
+    Function(String?) setErrorMessage,
+  ) async {
+    if (_user == null) {
+      setDialogState(() {
+        pinController.clear();
+      });
+      Navigator.pop(context);
+      return;
+    }
+
+    if (enteredPin == _user!.pin) {
+      // PIN is correct - reveal balance
+      Navigator.pop(context);
+      setState(() {
+        _isBalanceRevealed = true;
+      });
+    } else {
+      // PIN is incorrect
+      setDialogState(() {
+        pinController.clear();
+      });
+      setErrorMessage('Incorrect PIN. Please try again.');
+    }
   }
 }
 
