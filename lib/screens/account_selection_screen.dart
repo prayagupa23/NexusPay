@@ -82,29 +82,33 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
           builder: (_, controller) {
             return Column(
               children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  width: 40,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(3),
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 8, bottom: 4),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                   child: Text(
                     'Choose account to pay with',
                     style: TextStyle(
                       color: AppColors.primaryText,
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 Expanded(
                   child: ListView.builder(
                     controller: controller,
+                    shrinkWrap: true,
+                    physics: const ClampingScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 16),
                     itemCount: _accounts.length,
                     itemBuilder: (context, index) {
                       final account = _accounts[index];
@@ -118,41 +122,56 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
                           });
                           Navigator.pop(context);
                         },
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            account['shortName']!,
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                        leading: SizedBox(
+                          width: 60,
+                          height: 60,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              account['shortName']!,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ),
-                        title: Text(
-                          account['name']!,
-                          style: TextStyle(
-                            color: AppColors.primaryText,
-                            fontWeight: FontWeight.w600,
+                        title: Padding(
+                          padding: const EdgeInsets.only(bottom: 4.0),
+                          child: Text(
+                            account['name']!,
+                            style: TextStyle(
+                              color: AppColors.primaryText,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                         subtitle: Text(
-                          'acc no: ${account['accNo']!}',
+                          'Acc no: ${account['accNo']!}',
                           style: TextStyle(
                             color: AppColors.secondaryText,
                             fontSize: 13,
                           ),
                         ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        minVerticalPadding: 0,
+                        dense: true,
+                        visualDensity: VisualDensity.compact,
                         trailing: isSelected
                             ? const Icon(
-                          Icons.check_circle,
-                          color: AppColors.primaryBlue,
-                        )
-                            : null,
+                                Icons.check_circle,
+                                color: AppColors.primaryBlue,
+                                size: 24,
+                              )
+                            : const SizedBox(width: 24),
                       );
                     },
                   ),

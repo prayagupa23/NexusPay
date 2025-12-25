@@ -24,22 +24,22 @@ class _FeatureCarouselState extends State<FeatureCarousel> {
   final List<Feature> _features = [
     Feature(
       name: 'Phishing & Fake Link Detection',
-      description: 'We detect scam emails and messages using TF-IDF with Logistic Regression, while malicious URLs and fake UPI IDs are caught through a Random Forest model enhanced with WHOIS data. This multi-layer detection delivers strong protection with high accuracy and lightning-fast checks.',
+      description: 'Detect scam emails, malicious URLs, and fake UPI IDs with our multi-layered protection system. Combines TF-IDF, Logistic Regression, and Random Forest for accurate, real-time detection.',
       imagePath: 'assets/phishing.png',
     ),
     Feature(
       name: 'Transaction Anomaly Detection',
-      description: 'Our system learns each user’s natural spending behavior using XGBoost and instantly flags unusual amounts, odd timings, or unfamiliar receivers. This creates personalized fraud alerts that keep payments safe while maintaining fast, accurate, real-time detection.',
+      description: 'Personalized fraud protection that learns your spending patterns. Flags unusual transactions instantly using XGBoost for real-time security.',
       imagePath: 'assets/anomaly.png',
     ),
     Feature(
       name: 'Visual Analytics & Heatmaps',
-      description: 'Interactive heatmaps and analytics display fraud trends, hotspots, and risky time periods, helping both users and admins quickly understand suspicious activity. These clear, data-driven visuals turn ML outputs into real-time, easy-to-read insights.',
+      description: 'Interactive heatmaps show fraud trends and risky patterns. Transforms complex ML data into clear, actionable insights for better security decisions.',
       imagePath: 'assets/visual.png',
     ),
     Feature(
       name: 'Extra Security Layer',
-      description: 'An additional protection layer provides new device/location alerts, a payee trust score, and a one-tap panic freeze button to stop outgoing transactions instantly. This multi-tier defense prevents fraud before it happens while maintaining a smooth, frictionless user experience.',
+      description: 'Enhanced protection with device alerts, payee trust scoring, and instant transaction freezing. Multiple security layers for complete peace of mind.',
       imagePath: 'assets/security.png',
     ),
   ];
