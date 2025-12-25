@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
+import 'personal_details_screen.dart';
 
 class Feature {
   final String name;
@@ -159,7 +160,7 @@ class _FeatureCarouselState extends State<FeatureCarousel> {
               } else {
                 // Navigate to HomeScreen when on last slide
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  MaterialPageRoute(builder: (context) => const PersonalDetailsScreen()),
                 );
               }
             },

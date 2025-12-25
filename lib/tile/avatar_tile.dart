@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 
 class ContactAvatar extends StatelessWidget {
   final String name;
@@ -11,34 +10,20 @@ class ContactAvatar extends StatelessWidget {
     this.onTap,
   });
 
-// C O L O R S  O F  A V A T A R
+
   static const List<Color> avatarColors = [
-    Color(0xFF1E88E5), // GPay Blue
-    Color(0xFF43A047), // GPay Green
-    Color(0xFFF4511E), // GPay Orange
-    Color(0xFF8E24AA), // GPay Purple
-    Color(0xFF3949AB), // Indigo Blue
-    Color(0xFF00897B), // Teal Green
-    Color(0xFFD81B60), // Pink Red
-    Color(0xFF5E35B1), // Deep Violet
-    Color(0xFF039BE5), // Light Blue
-    Color(0xFF7CB342), // Soft Green
-    Color(0xFFFDD835), // Yellow Accent
-    Color(0xFF546E7A), // Neutral Blue Grey
-    Color(0xFFEF6C00), // Amber Orange
-    Color(0xFF6D4C41), // Brown Accent
-    Color(0xFF26A69A), // Mint Teal
+    Color(0xFF0061FF)
   ];
 
-  Color _getAvatarColor() {
-    // Use name's hash for consistent color per contact
-    final int hash = name.toLowerCase().hashCode;
-    return avatarColors[hash.abs() % avatarColors.length];
-  }
+  // Brightest cyan-blue for the character (vibrant & stands out beautifully)
+  static const Color letterColor = Color(0xFFFFFFFF);
+
+  Color? get bgColor => null;
 
   @override
   Widget build(BuildContext context) {
-    final Color bgColor = _getAvatarColor();
+    final String firstLetter = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final String firstName = name.split(" ").first;
 
     return InkWell(
       borderRadius: BorderRadius.circular(40),
@@ -52,8 +37,8 @@ class ContactAvatar extends StatelessWidget {
             child: Text(
               name[0].toUpperCase(),
               style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
                 color: Colors.white, // White letter like Google Pay
               ),
             ),
@@ -62,13 +47,13 @@ class ContactAvatar extends StatelessWidget {
           SizedBox(
             width: 80,
             child: Text(
-              name.split(" ").first,
+              firstName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 13.5,
-                color: AppColors.primaryText,
+                color: Colors.white,
                 fontWeight: FontWeight.w500,
               ),
             ),

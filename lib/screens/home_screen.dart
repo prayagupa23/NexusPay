@@ -19,7 +19,7 @@ class HomeScreen extends StatelessWidget {
           physics: const BouncingScrollPhysics(),
           child: Column(
             children: [
-              // T O P  B L A C K  S E C T I O N  (App Bar + Carousel)
+              // T O P  B L A C K  S E C T I O N
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
@@ -33,7 +33,7 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
 
-              // G R E Y I S H  S E C T I O N (Quick Actions, Alert, Trusted Contacts)
+              // G R E Y I S H  S E C T I O N
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
@@ -248,8 +248,8 @@ class _QuickActions extends StatelessWidget {
           child: Column(
             children: [
               Container(
-                width: 70,
-                height: 70,
+                width: 66,
+                height: 66,
                 decoration: BoxDecoration(
                   color: AppColors.primaryBlue,
                   borderRadius: BorderRadius.circular(20),
