@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'set_up_security_screen.dart';
+import '../services/user_registration_state.dart';
 
 class FinalStepScreen extends StatefulWidget {
   const FinalStepScreen({super.key});
@@ -14,11 +15,29 @@ class _FinalStepScreenState extends State<FinalStepScreen> {
   final TextEditingController mmController = TextEditingController();
   final TextEditingController yyyyController = TextEditingController();
 
-  String name = 'Alex Morgan';
-  String email = 'alex.morgan@example.com';
-  String phone = '+1 (555) 123-4567';
+  final _registrationState = UserRegistrationState();
+  String? _name;
+  String? _email;
+  String? _phone;
+  String? _dobError;
 
   bool agreed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = _registrationState.fullName;
+    _email = _registrationState.email;
+    _phone = _registrationState.phoneNumber;
+    
+    // Load existing DOB if available
+    if (_registrationState.dateOfBirth != null) {
+      final dob = _registrationState.dateOfBirth!;
+      ddController.text = dob.day.toString().padLeft(2, '0');
+      mmController.text = dob.month.toString().padLeft(2, '0');
+      yyyyController.text = dob.year.toString();
+    }
+  }
 
   @override
   void dispose() {
@@ -101,6 +120,17 @@ class _FinalStepScreenState extends State<FinalStepScreen> {
                   color: AppColors.mutedText,
                 ),
               ),
+              if (_dobError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _dobError!,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.dangerRed,
+                    ),
+                  ),
+                ),
 
               const SizedBox(height: 32),
               const Text(
@@ -190,8 +220,9 @@ class _FinalStepScreenState extends State<FinalStepScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              onPressed: agreed
+              onPressed: agreed && _isDobValid()
                   ? () {
+                _saveDob();
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -223,13 +254,22 @@ class _FinalStepScreenState extends State<FinalStepScreen> {
         decoration: BoxDecoration(
           color: AppColors.darkSurface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.secondarySurface, width: 1),
+          border: Border.all(
+            color: _dobError != null ? AppColors.dangerRed : AppColors.secondarySurface,
+            width: 1,
+          ),
         ),
         child: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           maxLength: hint == 'YYYY' ? 4 : 2,
+          onChanged: (_) {
+            setState(() {
+              _dobError = null;
+            });
+            _validateDob();
+          },
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -245,12 +285,95 @@ class _FinalStepScreenState extends State<FinalStepScreen> {
             border: InputBorder.none,
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: AppColors.primaryBlue, width: 2),
+              borderSide: BorderSide(
+                color: _dobError != null ? AppColors.dangerRed : AppColors.primaryBlue,
+                width: 2,
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  void _validateDob() {
+    final dd = ddController.text.trim();
+    final mm = mmController.text.trim();
+    final yyyy = yyyyController.text.trim();
+
+    if (dd.isEmpty || mm.isEmpty || yyyy.isEmpty) {
+      setState(() {
+        _dobError = null;
+      });
+      return;
+    }
+
+    try {
+      final day = int.parse(dd);
+      final month = int.parse(mm);
+      final year = int.parse(yyyy);
+
+      if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > DateTime.now().year) {
+        setState(() {
+          _dobError = 'Please enter a valid date';
+        });
+        return;
+      }
+
+      final dob = DateTime(year, month, day);
+      final age = DateTime.now().difference(dob).inDays ~/ 365;
+
+      if (age < 18) {
+        setState(() {
+          _dobError = 'You must be at least 18 years old';
+        });
+        return;
+      }
+
+      setState(() {
+        _dobError = null;
+      });
+    } catch (e) {
+      setState(() {
+        _dobError = 'Invalid date format';
+      });
+    }
+  }
+
+  bool _isDobValid() {
+    final dd = ddController.text.trim();
+    final mm = mmController.text.trim();
+    final yyyy = yyyyController.text.trim();
+
+    if (dd.isEmpty || mm.isEmpty || yyyy.isEmpty) {
+      return false;
+    }
+
+    try {
+      final day = int.parse(dd);
+      final month = int.parse(mm);
+      final year = int.parse(yyyy);
+
+      if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > DateTime.now().year) {
+        return false;
+      }
+
+      final dob = DateTime(year, month, day);
+      final age = DateTime.now().difference(dob).inDays ~/ 365;
+
+      return age >= 18;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  void _saveDob() {
+    if (_isDobValid()) {
+      final day = int.parse(ddController.text.trim());
+      final month = int.parse(mmController.text.trim());
+      final year = int.parse(yyyyController.text.trim());
+      _registrationState.dateOfBirth = DateTime(year, month, day);
+    }
   }
 
   Widget _stepIndicator() {
@@ -298,17 +421,26 @@ class _FinalStepScreenState extends State<FinalStepScreen> {
       ),
       child: Column(
         children: [
-          _editableRow('LEGAL NAME', name, (v) => setState(() => name = v)),
+          _editableRow('LEGAL NAME', _name ?? 'Not set', (v) {
+            setState(() => _name = v);
+            _registrationState.fullName = v;
+          }),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Divider(color: AppColors.secondarySurface, height: 1),
           ),
-          _editableRow('EMAIL ADDRESS', email, (v) => setState(() => email = v)),
+          _editableRow('EMAIL ADDRESS', _email ?? 'Not set', (v) {
+            setState(() => _email = v);
+            _registrationState.email = v;
+          }),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Divider(color: AppColors.secondarySurface, height: 1),
           ),
-          _editableRow('PHONE NUMBER', phone, (v) => setState(() => phone = v)),
+          _editableRow('PHONE NUMBER', _phone ?? 'Not set', (v) {
+            setState(() => _phone = v);
+            _registrationState.phoneNumber = v;
+          }),
         ],
       ),
     );

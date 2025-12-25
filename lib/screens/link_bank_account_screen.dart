@@ -1,9 +1,75 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'final_step_screen.dart';
+import '../services/user_registration_state.dart';
+import '../services/supabase_service.dart';
+import '../utils/supabase_config.dart';
+import '../models/user_model.dart';
 
-class LinkBankAccountScreen extends StatelessWidget {
+class LinkBankAccountScreen extends StatefulWidget {
   const LinkBankAccountScreen({super.key});
+
+  @override
+  State<LinkBankAccountScreen> createState() => _LinkBankAccountScreenState();
+}
+
+class _LinkBankAccountScreenState extends State<LinkBankAccountScreen> {
+  final _registrationState = UserRegistrationState();
+  late final SupabaseService _supabaseService;
+  String? _selectedBank;
+  String? _generatedUpiId;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  // Valid banks from database constraint
+  final List<String> _validBanks = ['Union', 'BOI', 'BOBaroda', 'Kotak', 'HDFC'];
+  
+  // Bank display names mapping
+  final Map<String, String> _bankDisplayNames = {
+    'Union': 'Union Bank',
+    'BOI': 'Bank of India',
+    'BOBaroda': 'Bank of Baroda',
+    'Kotak': 'Kotak Mahindra',
+    'HDFC': 'HDFC Bank',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _supabaseService = SupabaseService(SupabaseConfig.client);
+    _selectedBank = _registrationState.bankName;
+    _generatedUpiId = _registrationState.upiId;
+    _generateUpiId();
+  }
+
+  void _generateUpiId() {
+    if (_registrationState.fullName != null && _selectedBank != null) {
+      // Generate UPI ID: firstname.lastname@bankname (lowercase)
+      final nameParts = _registrationState.fullName!.toLowerCase().split(' ');
+      final firstName = nameParts.first;
+      final lastName = nameParts.length > 1 ? nameParts.last : '';
+      final bankName = _selectedBank!.toLowerCase();
+      
+      String upiId;
+      if (lastName.isNotEmpty) {
+        upiId = '$firstName.$lastName@$bankName';
+      } else {
+        upiId = '$firstName@$bankName';
+      }
+      
+      setState(() {
+        _generatedUpiId = upiId;
+      });
+    }
+  }
+
+  void _selectBank(String bank) {
+    setState(() {
+      _selectedBank = bank;
+      _errorMessage = null;
+    });
+    _generateUpiId();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,39 +117,33 @@ class LinkBankAccountScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 28),
-              const Text(
-                'Bank Name',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryText,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                style: const TextStyle(color: AppColors.primaryText),
-                decoration: InputDecoration(
-                  hintText: 'Search for your bank...',
-                  hintStyle: const TextStyle(color: AppColors.mutedText),
-                  prefixIcon: const Icon(Icons.search, color: AppColors.mutedText),
-                  filled: true,
-                  fillColor: AppColors.darkSurface,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+              // Error message
+              if (_errorMessage != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.dangerBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.dangerRed),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: AppColors.primaryBlue, width: 2),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: AppColors.dangerRed, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: AppColors.dangerRed, fontSize: 13),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
 
               const SizedBox(height: 32),
               Text(
-                'POPULAR BANKS',
+                'SELECT YOUR BANK',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -116,8 +176,11 @@ class LinkBankAccountScreen extends StatelessWidget {
           child: SizedBox(
             height: 56,
             child: ElevatedButton(
+              onPressed: _isLoading || _selectedBank == null ? null : _handleContinue,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryBlue,
+                backgroundColor: _isLoading || _selectedBank == null
+                    ? AppColors.secondarySurface
+                    : AppColors.primaryBlue,
                 foregroundColor: Colors.white,
                 elevation: 8,
                 shadowColor: AppColors.subtleBlueGlow,
@@ -125,26 +188,82 @@ class LinkBankAccountScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const FinalStepScreen(),
-                  ),
-                );
-              },
-              child: const Text(
-                'Verify & Continue →',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Verify & Continue →',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _handleContinue() async {
+    if (_selectedBank == null || _generatedUpiId == null) {
+      setState(() {
+        _errorMessage = 'Please select a bank';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Check if UPI ID already exists
+      final upiExists = await _supabaseService.checkUpiIdExists(_generatedUpiId!);
+      if (upiExists) {
+        // Try to generate a unique UPI ID by adding a number
+        int counter = 1;
+        String newUpiId = _generatedUpiId!;
+        while (await _supabaseService.checkUpiIdExists(newUpiId)) {
+          final parts = _generatedUpiId!.split('@');
+          newUpiId = '${parts[0]}$counter@${parts[1]}';
+          counter++;
+        }
+        _generatedUpiId = newUpiId;
+      }
+
+      // Save to registration state
+      _registrationState.bankName = _selectedBank;
+      _registrationState.upiId = _generatedUpiId;
+
+      // Navigate to next screen
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const FinalStepScreen(),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error: ${e.toString()}';
+        _isLoading = false;
+      });
+    } finally {
+      if (mounted && _errorMessage != null) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Widget _stepIndicator() {
@@ -183,57 +302,57 @@ class LinkBankAccountScreen extends StatelessWidget {
   }
 
   Widget _popularBanksGrid() {
-    final banks = [
-      {'name': 'HDFC', 'color': const Color(0xFFE91E63)},
-      {'name': 'SBI', 'color': const Color(0xFF00BCD4)},
-      {'name': 'ICICI', 'color': const Color(0xFFFF9800)},
-      {'name': 'AXIS', 'color': const Color(0xFF9C27B0)},
-      {'name': 'KOTAK', 'color': const Color(0xFF1976D2)},
-      {'name': 'PNB', 'color': const Color(0xFF4CAF50)},
-      {'name': 'All Banks', 'color': AppColors.mutedText.withOpacity(0.3)},
-    ];
+    // Map valid banks to colors
+    final bankColors = {
+      'Union': const Color(0xFF4CAF50),
+      'BOI': const Color(0xFF00BCD4),
+      'BOBaroda': const Color(0xFFFF9800),
+      'Kotak': const Color(0xFF1976D2),
+      'HDFC': const Color(0xFFE91E63),
+    };
 
     return Wrap(
       spacing: 20,
       runSpacing: 24,
       alignment: WrapAlignment.start,
-      children: banks.map((bank) {
-        final bool isAllBanks = bank['name'] == 'All Banks';
-        return Column(
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isAllBanks ? null : bank['color'] as Color,
-                border: isAllBanks
-                    ? Border.all(color: AppColors.mutedText.withOpacity(0.3), width: 2)
-                    : null,
-              ),
-              child: isAllBanks
-                  ? Icon(Icons.apps, color: AppColors.mutedText, size: 28)
-                  : Center(
-                child: Text(
-                  (bank['name'] as String)[0],
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+      children: _validBanks.map((bank) {
+        final isSelected = _selectedBank == bank;
+        return GestureDetector(
+          onTap: () => _selectBank(bank),
+          child: Column(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: bankColors[bank],
+                  border: isSelected
+                      ? Border.all(color: AppColors.primaryBlue, width: 3)
+                      : null,
+                ),
+                child: Center(
+                  child: Text(
+                    bank[0],
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              bank['name'] as String,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.primaryText,
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 10),
+              Text(
+                _bankDisplayNames[bank] ?? bank,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isSelected ? AppColors.primaryBlue : AppColors.primaryText,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       }).toList(),
     );
@@ -263,31 +382,37 @@ class LinkBankAccountScreen extends StatelessWidget {
                   letterSpacing: 0.6,
                 ),
               ),
-              TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Edit ID',
-                  style: TextStyle(
-                    color: AppColors.primaryBlue,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+              if (_generatedUpiId != null)
+                TextButton(
+                  onPressed: () {
+                    // Allow manual editing of UPI ID
+                    _showEditUpiDialog();
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'Edit ID',
+                    style: TextStyle(
+                      color: AppColors.primaryBlue,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            'john.doe@icici',
-            style: const TextStyle(
+            _generatedUpiId ?? 'Select a bank to generate UPI ID',
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.bold,
-              color: AppColors.primaryText,
+              color: _generatedUpiId != null
+                  ? AppColors.primaryText
+                  : AppColors.mutedText,
             ),
           ),
           const SizedBox(height: 16),
@@ -305,13 +430,15 @@ class LinkBankAccountScreen extends StatelessWidget {
                   child: RichText(
                     text: TextSpan(
                       style: TextStyle(fontSize: 14, color: AppColors.secondaryText),
-                      children: const [
-                        TextSpan(text: 'Linked to '),
+                      children: [
+                        const TextSpan(text: 'Linked to '),
                         TextSpan(
-                          text: '+1234 **** *89',
-                          style: TextStyle(fontWeight: FontWeight.w600),
+                          text: _registrationState.phoneNumber != null
+                              ? '${_registrationState.phoneNumber!.substring(0, 4)} **** ${_registrationState.phoneNumber!.substring(8)}'
+                              : '+1234 **** *89',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        TextSpan(text: '. You can use this ID to receive money securely from any payment app.'),
+                        const TextSpan(text: '. You can use this ID to receive money securely from any payment app.'),
                       ],
                     ),
                   ),
@@ -332,6 +459,51 @@ class LinkBankAccountScreen extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditUpiDialog() {
+    final controller = TextEditingController(text: _generatedUpiId);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.darkSurface,
+        title: const Text(
+          'Edit UPI ID',
+          style: TextStyle(color: AppColors.primaryText),
+        ),
+        content: TextField(
+          controller: controller,
+          style: const TextStyle(color: AppColors.primaryText),
+          decoration: InputDecoration(
+            hintText: 'e.g., parth.salunke@hdfc',
+            hintStyle: const TextStyle(color: AppColors.mutedText),
+            filled: true,
+            fillColor: AppColors.secondarySurface,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.mutedText)),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                setState(() {
+                  _generatedUpiId = controller.text.trim();
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Save', style: TextStyle(color: AppColors.primaryBlue)),
           ),
         ],
       ),

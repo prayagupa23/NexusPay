@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:heisenbug/screens/feature_carousel.dart';
+import 'package:heisenbug/screens/splash_screen.dart';
+import 'package:heisenbug/utils/supabase_config.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.immersiveSticky,
   );
+
+  // Initialize Supabase
+  await SupabaseConfig.initialize();
 
   runApp(const MyApp());
 }
@@ -52,7 +56,7 @@ class MyApp extends StatelessWidget {
           onError: Colors.black,
         ),
       ),
-      home: const FeatureCarousel(),
+      home: const SplashScreen(),
     );
   }
 }

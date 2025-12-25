@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 import 'home_screen.dart';
+import '../services/user_registration_state.dart';
+import '../services/supabase_service.dart';
+import '../utils/supabase_config.dart';
+import '../models/user_model.dart';
 
 class SetUpSecurityScreen extends StatefulWidget {
   const SetUpSecurityScreen({super.key});
@@ -13,17 +18,67 @@ class _SetUpSecurityScreenState extends State<SetUpSecurityScreen> {
   final TextEditingController _pinController = TextEditingController();
   bool _obscurePin = true;
   String? _selectedCity;
+  bool _isLoading = false;
+  String? _errorMessage;
+  String? _pinError;
 
+  final _registrationState = UserRegistrationState();
+  late final SupabaseService _supabaseService;
+
+  // Valid cities from database constraint
   final List<Map<String, String>> popularCities = [
-    {'city': 'New York, NY', 'country': 'United States'},
-    {'city': 'London', 'country': 'United Kingdom'},
-    {'city': 'Singapore', 'country': 'Singapore'},
     {'city': 'Mumbai', 'country': 'India'},
-    {'city': 'Dubai', 'country': 'United Arab Emirates'},
+    {'city': 'Pune', 'country': 'India'},
+    {'city': 'Delhi', 'country': 'India'},
+    {'city': 'Bangalore', 'country': 'India'},
+    {'city': 'Hyderabad', 'country': 'India'},
   ];
 
-  bool get _isFormComplete =>
-      _pinController.text.length == 4 && _selectedCity != null;
+  @override
+  void initState() {
+    super.initState();
+    _supabaseService = SupabaseService(SupabaseConfig.client);
+    _selectedCity = _registrationState.city;
+    if (_registrationState.pin != null) {
+      _pinController.text = _registrationState.pin!;
+    }
+  }
+
+  bool get _isFormComplete {
+    final pinValid = _pinController.text.length == 4 && 
+                     UserModel.isValidPin(_pinController.text) &&
+                     !_isSequentialPin(_pinController.text) &&
+                     _pinError == null;
+    return pinValid && _selectedCity != null && UserModel.isValidCity(_selectedCity!);
+  }
+
+  bool _isSequentialPin(String pin) {
+    // Check for sequential patterns like 1234, 4321, 0000, etc.
+    final digits = pin.split('').map(int.parse).toList();
+    
+    // Check if all digits are same
+    if (digits.every((d) => d == digits[0])) return true;
+    
+    // Check if sequential ascending
+    bool ascending = true;
+    for (int i = 1; i < digits.length; i++) {
+      if (digits[i] != digits[i - 1] + 1) {
+        ascending = false;
+        break;
+      }
+    }
+    
+    // Check if sequential descending
+    bool descending = true;
+    for (int i = 1; i < digits.length; i++) {
+      if (digits[i] != digits[i - 1] - 1) {
+        descending = false;
+        break;
+      }
+    }
+    
+    return ascending || descending;
+  }
 
   @override
   void dispose() {
@@ -78,6 +133,30 @@ class _SetUpSecurityScreenState extends State<SetUpSecurityScreen> {
               ),
 
               const SizedBox(height: 32),
+
+              // Error message
+              if (_errorMessage != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.dangerBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.dangerRed),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: AppColors.dangerRed, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: AppColors.dangerRed, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               // CREATE A 4-DIGIT PIN
               Row(
@@ -137,6 +216,17 @@ class _SetUpSecurityScreenState extends State<SetUpSecurityScreen> {
                 'Avoid sequential numbers like 1234 or 0000.',
                 style: TextStyle(fontSize: 13, color: AppColors.mutedText),
               ),
+              if (_pinError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _pinError!,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.dangerRed,
+                    ),
+                  ),
+                ),
 
               // Hidden TextField for actual PIN input
               Opacity(
@@ -146,7 +236,18 @@ class _SetUpSecurityScreenState extends State<SetUpSecurityScreen> {
                   keyboardType: TextInputType.number,
                   maxLength: 4,
                   autofocus: true,
-                  onChanged: (_) => setState(() {}),
+                  onChanged: (_) {
+                    setState(() {
+                      _pinError = null;
+                      if (_pinController.text.length == 4) {
+                        if (!UserModel.isValidPin(_pinController.text)) {
+                          _pinError = 'PIN must be exactly 4 digits';
+                        } else if (_isSequentialPin(_pinController.text)) {
+                          _pinError = 'Avoid sequential or repeating PINs';
+                        }
+                      }
+                    });
+                  },
                 ),
               ),
 
@@ -239,19 +340,22 @@ class _SetUpSecurityScreenState extends State<SetUpSecurityScreen> {
                     : Colors.transparent,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
-              onPressed: _isFormComplete
-                  ? () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
-                      (_) => false,
-                );
-              }
+              onPressed: _isFormComplete && !_isLoading
+                  ? _handleSaveAndContinue
                   : null,
-              child: const Text(
-                'Save & Continue',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Save & Continue',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                    ),
             ),
           ),
         ),
@@ -362,5 +466,53 @@ class _SetUpSecurityScreenState extends State<SetUpSecurityScreen> {
         );
       }).toList(),
     );
+  }
+
+  Future<void> _handleSaveAndContinue() async {
+    setState(() {
+      _errorMessage = null;
+      _isLoading = true;
+    });
+
+    // Save PIN and city to registration state
+    _registrationState.pin = _pinController.text;
+    _registrationState.city = _selectedCity;
+
+    try {
+      // Create user model from registration state
+      final userModel = _registrationState.toUserModel();
+      
+      if (userModel == null) {
+        setState(() {
+          _errorMessage = 'Please complete all required fields';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Save to Supabase
+      await _supabaseService.createUser(userModel);
+
+      // Save phone number to SharedPreferences for future PIN lock screen
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('logged_in_phone', userModel.phoneNumber);
+
+      // Clear registration state
+      _registrationState.clear();
+
+      // Navigate to home screen
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (_) => false,
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 }
