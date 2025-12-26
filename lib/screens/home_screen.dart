@@ -436,25 +436,44 @@ class TrustedContactsSection extends StatefulWidget {
 class _TrustedContactsSectionState extends State<TrustedContactsSection> {
   late final SupabaseService _supabaseService;
   List<UserModel> _contacts = [];
+  String? _currentUserUpi; // Store the current user's UPI
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _supabaseService = SupabaseService(SupabaseConfig.client);
-    _loadContacts();
+    _loadData();
   }
 
-  Future<void> _loadContacts() async {
+  Future<void> _loadData() async {
     try {
-      final allUsers = await _supabaseService.getAllUsers();
       final prefs = await SharedPreferences.getInstance();
       final currentPhone = prefs.getString('logged_in_phone');
-      final contacts = currentPhone != null
-          ? allUsers.where((user) => user.phoneNumber != currentPhone).toList()
-          : allUsers;
-      if (mounted) setState(() { _contacts = contacts; _isLoading = false; });
+
+      // 1. Fetch all users
+      final allUsers = await _supabaseService.getAllUsers();
+
+      if (currentPhone != null) {
+        // 2. Find the current user in the list to get their UPI
+        final currentUser = allUsers.firstWhere(
+              (u) => u.phoneNumber == currentPhone,
+          orElse: () => throw Exception("User not found"),
+        );
+
+        // 3. Filter contacts (everyone except the current user)
+        final contacts = allUsers.where((u) => u.phoneNumber != currentPhone).toList();
+
+        if (mounted) {
+          setState(() {
+            _contacts = contacts;
+            _currentUserUpi = currentUser.upiId; // Set the UPI here
+            _isLoading = false;
+          });
+        }
+      }
     } catch (e) {
+      debugPrint("Error loading contacts: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -466,8 +485,13 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text("Trusted Contacts",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryText(context))),
+          child: Text(
+            "Trusted Contacts",
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryText(context)),
+          ),
         ),
         const SizedBox(height: 20),
         _isLoading
@@ -483,10 +507,26 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
                 padding: const EdgeInsets.only(right: 24),
                 child: ContactAvatar(
                   name: user.fullName,
-                  onTap: () => Navigator.push(
+                  onTap: () {
+                    if (_currentUserUpi == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("User profile not loaded")),
+                      );
+                      return;
+                    }
+
+                    Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => ContactDetailScreen(name: user.fullName, upiId: user.upiId))),
+                        builder: (_) => ContactDetailScreen(
+                          name: user.fullName,
+                          upiId: user.upiId,
+                          // FIXED: Passing the fetched UPI
+                          currentUserUpi: _currentUserUpi!,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               )),
               _buildAddButton(),
