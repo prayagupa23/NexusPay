@@ -7,6 +7,7 @@ import '../services/supabase_service.dart';
 import '../utils/supabase_config.dart';
 import '../models/user_profile_model.dart';
 import '../models/user_model.dart';
+import '../widgets/upi_qr_code_widget.dart';
 import 'auth_choice_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -151,6 +152,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildSectionHeader('PERSONAL METRICS'),
                 const SizedBox(height: 16),
                 _buildInfoGrid(),
+                const SizedBox(height: 32),
+                _buildSectionHeader('PAYMENT QR CODE'),
+                const SizedBox(height: 16),
+                Center(
+                  child: UpiQrCodeWidget(
+                    upiId: _profile!.upiId,
+                    displayName: _profile!.fullName,
+                    size: 250,
+                  ),
+                ),
                 const SizedBox(height: 100),
               ],
             ),
