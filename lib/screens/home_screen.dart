@@ -5,6 +5,8 @@ import '../theme/app_colors.dart';
 import 'pay_anyone_screen.dart';
 import 'contact_detail_screen.dart';
 import 'profile_screen.dart';
+import 'qr_scanner_screen.dart';
+import 'payment_screen.dart';
 import '../services/supabase_service.dart';
 import '../utils/supabase_config.dart';
 import '../models/user_model.dart';
@@ -226,7 +228,25 @@ class _QuickActionsRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _actionItem(context, "Scan & Pay", Icons.qr_code_scanner_rounded),
+          _actionItem(context, "Scan & Pay", Icons.qr_code_scanner_rounded, onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+            );
+            
+            if (result != null && result is Map<String, dynamic>) {
+              // Navigate to payment screen with scanned data
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PaymentScreen(
+                    name: result['name'] as String,
+                    upiId: result['upiId'] as String,
+                  ),
+                ),
+              );
+            }
+          }),
           _actionItem(context, "Send Money", Icons.send_rounded, onTap: () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const PayScreen()));
           }),
