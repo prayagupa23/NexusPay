@@ -43,6 +43,10 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^5.2.2
   url_launcher: ^6.2.5
+  intl: ^0.19.0
+  google_generative_ai: ^0.4.6
+  shimmer: ^3.0.0
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +69,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Add the .env file as an asset so flutter_dotenv can load it
+  assets:
+    - .env
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -93,8 +101,6 @@ flutter:
   #       - asset: fonts/TrajanPro.ttf
   #       - asset: fonts/TrajanPro_Bold.ttf
   #         weight: 700
-  #
-
 
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package

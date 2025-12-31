@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
+
+// Ensure these imports match your actual file structure
 import '../theme/app_colors.dart';
 import 'pay_anyone_screen.dart';
 import 'contact_detail_screen.dart';
@@ -11,6 +15,7 @@ import '../services/supabase_service.dart';
 import '../utils/supabase_config.dart';
 import '../models/user_model.dart';
 import '../tile/avatar_tile.dart';
+import 'chat_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -33,20 +38,111 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 32),
               const _FraudIntelligenceSection(),
               const SizedBox(height: 40),
-              const TrustedContactsSection(), // Correctly linked section
+              const TrustedContactsSection(),
               const SizedBox(height: 120),
             ],
           ),
         ),
       ),
       bottomNavigationBar: const BottomNav(),
+
+      // Enhanced Floating Action Button
+      floatingActionButton: Container(
+        height: 70,
+        width: 70,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1A56DB).withOpacity(0.3),
+              blurRadius: 25,
+              offset: const Offset(0, 10),
+            ),
+            BoxShadow(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.black.withOpacity(0.5)
+                  : Colors.blue.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatScreen()),
+              );
+            },
+            borderRadius: BorderRadius.circular(35),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF1A56DB),
+                    Color(0xFF3B82F6),
+                  ],
+                ),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.2),
+                  width: 1.5,
+                ),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    height: 50,
+                    width: 50,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.shield_rounded,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                  Positioned(
+                    right: 18,
+                    top: 18,
+                    child: Container(
+                      height: 8,
+                      width: 8,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF1A56DB), width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF10B981).withOpacity(0.5),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
 
-// -----------------------------------------------------------------------------
-// APP BAR
-// -----------------------------------------------------------------------------
 class _AppBarSection extends StatelessWidget {
   const _AppBarSection();
 
@@ -57,14 +153,14 @@ class _AppBarSection extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text("AppName",
+          Text("Heisenbug",
               style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.primaryText(context))),
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
-            child: CircleAvatar(
+            child: const CircleAvatar(
               radius: 24,
-              backgroundColor: const Color(0xFFFFE4D6),
-              child: const Icon(Icons.person, color: Color(0xFFF97316)),
+              backgroundColor: Color(0xFFFFE4D6),
+              child: Icon(Icons.person, color: Color(0xFFF97316)),
             ),
           ),
         ],
@@ -73,9 +169,6 @@ class _AppBarSection extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// PROTECTION SHIELD CARD
-// -----------------------------------------------------------------------------
 class _ProtectionShieldCard extends StatelessWidget {
   const _ProtectionShieldCard();
 
@@ -83,7 +176,6 @@ class _ProtectionShieldCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      // Added extra bottom padding (40 instead of 32) so the badge doesn't get cut
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
       decoration: BoxDecoration(
         color: AppColors.surface(context),
@@ -100,12 +192,9 @@ class _ProtectionShieldCard extends StatelessWidget {
           )
         ],
       ),
-      // Removed ClipRRect so the badge can breathe,
-      // moved the background icon into a simple Stack
       child: Stack(
-        clipBehavior: Clip.none, // Allows the badge to overflow if needed
+        clipBehavior: Clip.none,
         children: [
-          // Creative Background Watermark
           Positioned(
             right: -10,
             top: -10,
@@ -115,7 +204,6 @@ class _ProtectionShieldCard extends StatelessWidget {
               color: const Color(0xFF1A56DB).withOpacity(0.03),
             ),
           ),
-
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -165,7 +253,7 @@ class _ProtectionShieldCard extends StatelessWidget {
   Widget _buildAnimatedShieldIcon() {
     return Stack(
       alignment: Alignment.bottomCenter,
-      clipBehavior: Clip.none, // Critical to prevent cutting
+      clipBehavior: Clip.none,
       children: [
         Container(
           padding: const EdgeInsets.all(22),
@@ -183,9 +271,8 @@ class _ProtectionShieldCard extends StatelessWidget {
             size: 38,
           ),
         ),
-        // Positioned used instead of Transform for better layout control
         Positioned(
-          bottom: -8, // Pulls the badge down without needing Transform
+          bottom: -8,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -215,9 +302,7 @@ class _ProtectionShieldCard extends StatelessWidget {
     );
   }
 }
-// -----------------------------------------------------------------------------
-// QUICK ACTIONS
-// -----------------------------------------------------------------------------
+
 class _QuickActionsRow extends StatelessWidget {
   const _QuickActionsRow();
 
@@ -233,9 +318,8 @@ class _QuickActionsRow extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (_) => const QrScannerScreen()),
             );
-            
+
             if (result != null && result is Map<String, dynamic>) {
-              // Navigate to payment screen with scanned data
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -275,9 +359,6 @@ class _QuickActionsRow extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// FRAUD INTELLIGENCE
-// -----------------------------------------------------------------------------
 class _FraudIntelligenceSection extends StatelessWidget {
   const _FraudIntelligenceSection();
 
@@ -315,7 +396,6 @@ class _FraudIntelligenceSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              // DARK MODE: Deep Charcoal-Red Gradient | LIGHT MODE: Soft Red Gradient
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -340,7 +420,6 @@ class _FraudIntelligenceSection extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    // Alert Icon Container
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -400,7 +479,6 @@ class _FraudIntelligenceSection extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
-                // Descriptive text with better separation
                 Text(
                   "An unrecognized device tried to access your secure vault. Immediate review recommended.",
                   style: TextStyle(
@@ -411,7 +489,6 @@ class _FraudIntelligenceSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Action Button
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -443,9 +520,6 @@ class _FraudIntelligenceSection extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// TRUSTED CONTACTS SECTION
-// -----------------------------------------------------------------------------
 class TrustedContactsSection extends StatefulWidget {
   const TrustedContactsSection({super.key});
 
@@ -456,7 +530,7 @@ class TrustedContactsSection extends StatefulWidget {
 class _TrustedContactsSectionState extends State<TrustedContactsSection> {
   late final SupabaseService _supabaseService;
   List<UserModel> _contacts = [];
-  String? _currentUserUpi; // Store the current user's UPI
+  String? _currentUserUpi;
   bool _isLoading = true;
 
   @override
@@ -471,23 +545,20 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
       final prefs = await SharedPreferences.getInstance();
       final currentPhone = prefs.getString('logged_in_phone');
 
-      // 1. Fetch all users
       final allUsers = await _supabaseService.getAllUsers();
 
       if (currentPhone != null) {
-        // 2. Find the current user in the list to get their UPI
         final currentUser = allUsers.firstWhere(
               (u) => u.phoneNumber == currentPhone,
           orElse: () => throw Exception("User not found"),
         );
 
-        // 3. Filter contacts (everyone except the current user)
         final contacts = allUsers.where((u) => u.phoneNumber != currentPhone).toList();
 
         if (mounted) {
           setState(() {
             _contacts = contacts;
-            _currentUserUpi = currentUser.upiId; // Set the UPI here
+            _currentUserUpi = currentUser.upiId;
             _isLoading = false;
           });
         }
@@ -541,7 +612,6 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
                         builder: (_) => ContactDetailScreen(
                           name: user.fullName,
                           upiId: user.upiId,
-                          // FIXED: Passing the fetched UPI
                           currentUserUpi: _currentUserUpi!,
                         ),
                       ),
@@ -576,9 +646,6 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// BOTTOM NAVIGATION
-// -----------------------------------------------------------------------------
 class BottomNav extends StatefulWidget {
   const BottomNav({super.key});
 

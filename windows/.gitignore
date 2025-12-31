@@ -1,5 +1,9 @@
 flutter/ephemeral/
 
+# Environment variables
+.env
+.env.local
+.env.*   # covers any env files like .env.dev, .env.prod
 # Visual Studio user-specific files.
 *.suo
 *.user
