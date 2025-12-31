@@ -16,11 +16,11 @@ class FraudDetectionService {
     }
 
     _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3-flash-preview',
       apiKey: apiKey,
     );
 
-    print("✅ Gemini initialized with gemini-1.5-flash");
+    print(" Gemini initialized with gemini-1.5-flash");
   }
 
   Future<String> analyzeFraudRisk(String userInput) async {
