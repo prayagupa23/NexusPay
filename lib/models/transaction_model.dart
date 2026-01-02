@@ -10,6 +10,8 @@ class TransactionModel {
   final String status; // 'SUCCESS', 'PENDING', 'CANCELLED'
   final String? utrReference;
   final DateTime? createdAt;
+  final bool? isTrustedContact; // Whether the receiver is a trusted contact
+  final bool? isVerifiedContact; // Whether the contact was verified via phone API
 
   TransactionModel({
     this.id,
@@ -21,6 +23,8 @@ class TransactionModel {
     required this.status,
     this.utrReference,
     this.createdAt,
+    this.isTrustedContact,
+    this.isVerifiedContact,
   });
 
   // Convert to Map for Supabase
@@ -35,6 +39,8 @@ class TransactionModel {
       'status': status,
       if (utrReference != null) 'utr_reference': utrReference,
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
+      if (isTrustedContact != null) 'is_trusted_contact': isTrustedContact,
+      if (isVerifiedContact != null) 'is_verified_contact': isVerifiedContact,
     };
   }
 
@@ -54,6 +60,8 @@ class TransactionModel {
       createdAt: map['created_at'] != null
           ? DateTime.parse(map['created_at'] as String)
           : null,
+      isTrustedContact: map['is_trusted_contact'] as bool?,
+      isVerifiedContact: map['is_verified_contact'] as bool?,
     );
   }
 

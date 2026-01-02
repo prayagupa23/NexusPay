@@ -5,6 +5,7 @@ import '../models/user_model.dart';
 import '../models/user_profile_model.dart';
 import '../models/transaction_model.dart';
 import '../models/user_transaction_context_model.dart';
+import 'phone_verification_service.dart';
 
 class SupabaseService {
   final SupabaseClient _client;
@@ -385,10 +386,44 @@ class SupabaseService {
         throw 'Insufficient balance';
       }
 
+      // Check if receiver is a trusted contact
+      bool isTrustedContact = false;
+      bool isVerifiedContact = false;
+      
+      // Get receiver user
+      final receiver = await getUserByUpiId(receiverUpi);
+      
+      if (receiver != null) {
+        // Check if receiver is in trusted contacts (exists in our system)
+        final allUsers = await getAllUsers();
+        final currentUserPhone = user.phoneNumber;
+        
+        // Check if we've transacted with this user before
+        final previousTransactions = await getUserTransactions(userId);
+        isTrustedContact = previousTransactions.any(
+          (tx) => tx.receiverUpi == receiverUpi,
+        );
+        
+        // Verify phone number using Numlookup API
+        try {
+          final phoneVerificationService = PhoneVerificationService();
+          final phoneNumber = '+91${receiver.phoneNumber}';
+          final verificationResult = await phoneVerificationService.validatePhoneNumber(phoneNumber);
+          
+          if (verificationResult != null && verificationResult.valid) {
+            isVerifiedContact = true;
+            debugPrint('Contact verified: ${receiver.fullName} - ${verificationResult.location}');
+          }
+        } catch (e) {
+          debugPrint('Phone verification error: $e');
+          // Continue without verification if API fails
+        }
+      }
+
       // Generate UTR reference
       final utrReference = TransactionModel.generateUtrReference();
 
-      // Create transaction
+      // Create transaction with verification status
       final transaction = TransactionModel(
         userId: userId,
         receiverUpi: receiverUpi,
@@ -397,6 +432,8 @@ class SupabaseService {
         location: location,
         status: 'SUCCESS',
         utrReference: utrReference,
+        isTrustedContact: isTrustedContact,
+        isVerifiedContact: isVerifiedContact,
       );
 
       final createdTransaction = await createTransaction(transaction);
@@ -406,7 +443,6 @@ class SupabaseService {
       await updateBankBalance(userId, newBalance);
 
       // Update receiver's bank balance (add)
-      final receiver = await getUserByUpiId(receiverUpi);
       if (receiver == null || receiver.userId == null) {
         debugPrint('Warning: Receiver with UPI ID $receiverUpi not found');
       } else {

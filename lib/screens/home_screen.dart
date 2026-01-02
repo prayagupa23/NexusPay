@@ -14,11 +14,31 @@ import 'payment_screen.dart';
 import '../services/supabase_service.dart';
 import '../utils/supabase_config.dart';
 import '../models/user_model.dart';
+import '../models/transaction_model.dart';
 import '../tile/avatar_tile.dart';
 import 'chat_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Listen for payment completion to refresh alerts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForUnknownUserAlerts();
+    });
+  }
+
+  Future<void> _checkForUnknownUserAlerts() async {
+    // This will be called to refresh alerts when needed
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +55,8 @@ class HomeScreen extends StatelessWidget {
               const _ProtectionShieldCard(),
               const SizedBox(height: 32),
               const _QuickActionsRow(),
+              const SizedBox(height: 32),
+              const _UnknownUserAlertSection(),
               const SizedBox(height: 32),
               const _FraudIntelligenceSection(),
               const SizedBox(height: 40),
@@ -359,6 +381,303 @@ class _QuickActionsRow extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
+// UNKNOWN USER ALERT SECTION
+// -----------------------------------------------------------------------------
+class _UnknownUserAlertSection extends StatefulWidget {
+  const _UnknownUserAlertSection();
+
+  @override
+  State<_UnknownUserAlertSection> createState() => _UnknownUserAlertSectionState();
+}
+
+class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
+  late final SupabaseService _supabaseService;
+  TransactionModel? _unknownUserTransaction;
+  UserModel? _unknownUser;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _supabaseService = SupabaseService(SupabaseConfig.client);
+    _loadUnknownUserAlert();
+  }
+
+  Future<void> _loadUnknownUserAlert() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final phoneNumber = prefs.getString('logged_in_phone');
+      
+      if (phoneNumber != null) {
+        final user = await _supabaseService.getUserByPhone(phoneNumber);
+        if (user != null && user.userId != null) {
+          // Get recent transactions
+          final transactions = await _supabaseService.getUserTransactions(user.userId!, limit: 10);
+          
+          // Find the most recent transaction with unknown/unverified user
+          for (var tx in transactions) {
+            // Check if transaction is with unknown user (not trusted and not verified)
+            if (tx.isTrustedContact == false || (tx.isTrustedContact == null && tx.isVerifiedContact == false)) {
+              // Try to get user info
+              try {
+                final receiver = await _supabaseService.getUserByUpiId(tx.receiverUpi);
+                if (mounted) {
+                  setState(() {
+                    _unknownUserTransaction = tx;
+                    _unknownUser = receiver;
+                    _isLoading = false;
+                  });
+                }
+                return;
+              } catch (e) {
+                // If user not found, still show alert
+                if (mounted) {
+                  setState(() {
+                    _unknownUserTransaction = tx;
+                    _unknownUser = null;
+                    _isLoading = false;
+                  });
+                }
+                return;
+              }
+            }
+          }
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading unknown user alert: $e");
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading || _unknownUserTransaction == null) {
+      return const SizedBox.shrink();
+    }
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final receiverName = _unknownUser?.fullName ?? _unknownUserTransaction!.receiverUpi.split('@').first;
+    final amount = _unknownUserTransaction!.amount;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? [const Color(0xFF1E1B1B), const Color(0xFF121212)]
+                : [const Color(0xFFFFF5F5), const Color(0xFFFFE8E8)],
+          ),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(
+            color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFFD1D1),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            )
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFFDADA),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    Icons.warning_rounded,
+                    color: isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Unknown User Payment",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE11D48).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              "UNVERIFIED",
+                              style: TextStyle(
+                                color: isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Payment to $receiverName",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF2D2D2D) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Amount",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.mutedText(context),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "₹${amount.toStringAsFixed(2)}",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primaryText(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        "Status",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.mutedText(context),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 16,
+                            color: Colors.orange.shade400,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "Unverified Contact",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.orange.shade400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "This payment was made to an unverified contact. Verify the recipient before sending money again.",
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                fontWeight: FontWeight.w400,
+                color: AppColors.secondaryText(context),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () {
+                  // Navigate to transaction details or contact verification
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? const Color(0xFF2D2D2D) : Colors.white,
+                  foregroundColor: isDark ? Colors.white : const Color(0xFFE11D48),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
+                    ),
+                  ),
+                ),
+                child: const Text(
+                  "Verify Contact",
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// FRAUD INTELLIGENCE
+// -----------------------------------------------------------------------------
 class _FraudIntelligenceSection extends StatelessWidget {
   const _FraudIntelligenceSection();
 
