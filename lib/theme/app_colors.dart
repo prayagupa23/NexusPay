@@ -2,24 +2,25 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // Shared (same in light & dark)
-  // A professional Cobalt Blue - cleaner and more "Banking" than Indigo
-  static const Color primaryBlue = Color(0xFF2563EB);
-  static const Color primaryBlueHover = Color(0xFF1D4ED8);
-  static const Color subtleBlueGlow = Color.fromRGBO(37, 99, 235, 0.12);
+  // Google Pay blue and contrasting shades
+  static const Color primaryBlue = Color(0xFF0742A0);
+  static const Color primaryBlueHover = Color(0xFF052F6E);
+  static const Color subtleBlueGlow = Color.fromRGBO(7, 66, 160, 0.12);
 
   // Danger / Error colors (shared)
-  static const Color dangerRed = Color(0xFFE11D48);
-  static const Color dangerBgDark = Color(0xFF4C0519);
+  // Muted red (no neon) for high alert/high risk block
+  static const Color dangerRed = Color(0xFFB85C5C);
+  static const Color dangerBgDark = Color(0xFF3A2A2A);
   static const Color dangerBgLight = Color(0xFFFFF1F2);
 
-  // Dark mode - "Midnight Slate"
-  // Deep charcoal with a hint of blue-gray for a premium look
-  static const Color darkBg = Color(0xFF020617);
-  static const Color darkSurface = Color(0xFF0F172A);
-  static const Color darkSecondarySurface = Color(0xFF1E293B);
-  static const Color darkPrimaryText = Color(0xFFF8FAFC);
-  static const Color darkSecondaryText = Color(0xFF94A3B8);
-  static const Color darkMutedText = Color(0xFF475569);
+  // Dark mode - "Deep Charcoal"
+  // Deep charcoal / near-black (not pure black) with premium muted tones
+  static const Color darkBg = Color(0xFF1A1A1A);
+  static const Color darkSurface = Color(0xFF242424);
+  static const Color darkSecondarySurface = Color(0xFF2E2E2E);
+  static const Color darkPrimaryText = Color(0xFFF5F5F5);
+  static const Color darkSecondaryText = Color(0xFFB0B0B0);
+  static const Color darkMutedText = Color(0xFF6B6B6B);
 
   // Light mode - "Iceberg White"
   static const Color lightBg = Color(0xFFFFFFFF);
@@ -30,13 +31,15 @@ class AppColors {
   static const Color lightMutedText = Color(0xFF94A3B8);
 
   // Status
-  static const Color successGreen = Color(0xFF10B981);
-  static const Color successBgDark = Color(0xFF064E3B);
+  // Subtle green (not bright) for success/allow
+  static const Color successGreen = Color(0xFF5B9B7D);
+  static const Color successBgDark = Color(0xFF2A3A32);
   static const Color successBgLight = Color(0xFFECFDF5);
 
   // Warning colors
-  static const Color warningYellow = Color(0xFFF59E0B);
-  static const Color warningBgDark = Color(0xFF451A03);
+  // Soft amber / yellow for warning/confirmation modal
+  static const Color warningYellow = Color(0xFFD4A574);
+  static const Color warningBgDark = Color(0xFF3A322A);
   static const Color warningBgLight = Color(0xFFFFFBEB);
 
   // Info colors

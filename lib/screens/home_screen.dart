@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
 
 // Ensure these imports match your actual file structure
 import '../theme/app_colors.dart';
@@ -17,6 +15,8 @@ import '../models/user_model.dart';
 import '../models/transaction_model.dart';
 import '../tile/avatar_tile.dart';
 import 'chat_screen.dart';
+import 'money_screen.dart';
+import '../widgets/bottom_nav_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -66,101 +66,22 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: const BottomNav(),
-
-      // Enhanced Floating Action Button
-      floatingActionButton: Container(
-        height: 70,
-        width: 70,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1A56DB).withOpacity(0.3),
-              blurRadius: 25,
-              offset: const Offset(0, 10),
-            ),
-            BoxShadow(
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.black.withOpacity(0.5)
-                  : Colors.blue.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ChatScreen()),
-              );
-            },
-            borderRadius: BorderRadius.circular(35),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF1A56DB),
-                    Color(0xFF3B82F6),
-                  ],
-                ),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
-                  width: 1.5,
-                ),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    height: 50,
-                    width: 50,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.1),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.shield_rounded,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                  Positioned(
-                    right: 18,
-                    top: 18,
-                    child: Container(
-                      height: 8,
-                      width: 8,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFF1A56DB), width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF10B981).withOpacity(0.5),
-                            blurRadius: 4,
-                            spreadRadius: 1,
-                          )
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+      bottomNavigationBar: AppBottomNavBar(
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MoneyScreen()),
+            );
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChatScreen()),
+            );
+          }
+        },
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
@@ -175,10 +96,19 @@ class _AppBarSection extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text("Heisenbug",
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.primaryText(context))),
+          Text(
+            "NexusPay",
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              color: AppColors.primaryText(context),
+            ),
+          ),
           GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
             child: const CircleAvatar(
               radius: 24,
               backgroundColor: Color(0xFFFFE4D6),
@@ -211,7 +141,7 @@ class _ProtectionShieldCard extends StatelessWidget {
             color: Colors.black.withOpacity(0.05),
             blurRadius: 30,
             offset: const Offset(0, 15),
-          )
+          ),
         ],
       ),
       child: Stack(
@@ -238,18 +168,17 @@ class _ProtectionShieldCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          "Secure Protection",
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primaryText(context),
-                            letterSpacing: -0.5,
+                        Expanded(
+                          child: Text(
+                            "Secure Protection",
+                            style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primaryText(context),
+                              letterSpacing: -0.5,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.verified_rounded,
-                            color: Color(0xFF1A56DB), size: 18),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -293,33 +222,6 @@ class _ProtectionShieldCard extends StatelessWidget {
             size: 38,
           ),
         ),
-        Positioned(
-          bottom: -8,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF10B981).withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                )
-              ],
-            ),
-            child: const Text(
-              "SECURED",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 8,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1,
-              ),
-            ),
-          ),
-        )
       ],
     );
   }
@@ -335,27 +237,40 @@ class _QuickActionsRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _actionItem(context, "Scan & Pay", Icons.qr_code_scanner_rounded, onTap: () async {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const QrScannerScreen()),
-            );
+          _actionItem(
+            context,
+            "Scan & Pay",
+            Icons.qr_code_scanner_rounded,
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+              );
 
-            if (result != null && result is Map<String, dynamic>) {
+              if (result != null && result is Map<String, dynamic>) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PaymentScreen(
+                      name: result['name'] as String,
+                      upiId: result['upiId'] as String,
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+          _actionItem(
+            context,
+            "Pay Anyone",
+            Icons.send_rounded,
+            onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => PaymentScreen(
-                    name: result['name'] as String,
-                    upiId: result['upiId'] as String,
-                  ),
-                ),
+                MaterialPageRoute(builder: (_) => const PayScreen()),
               );
-            }
-          }),
-          _actionItem(context, "Send Money", Icons.send_rounded, onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const PayScreen()));
-          }),
+            },
+          ),
           _actionItem(context, "Heat Maps", Icons.map_rounded),
           _actionItem(context, "Detect Fraud", Icons.fact_check_rounded),
         ],
@@ -363,18 +278,34 @@ class _QuickActionsRow extends StatelessWidget {
     );
   }
 
-  Widget _actionItem(BuildContext context, String label, IconData icon, {VoidCallback? onTap}) {
+  Widget _actionItem(
+    BuildContext context,
+    String label,
+    IconData icon, {
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
         children: [
           Container(
-            width: 64, height: 64,
-            decoration: BoxDecoration(color: const Color(0xFF1A56DB), borderRadius: BorderRadius.circular(20)),
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A56DB),
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Icon(icon, color: Colors.white, size: 28),
           ),
           const SizedBox(height: 10),
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primaryText(context))),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primaryText(context),
+            ),
+          ),
         ],
       ),
     );
@@ -388,7 +319,8 @@ class _UnknownUserAlertSection extends StatefulWidget {
   const _UnknownUserAlertSection();
 
   @override
-  State<_UnknownUserAlertSection> createState() => _UnknownUserAlertSectionState();
+  State<_UnknownUserAlertSection> createState() =>
+      _UnknownUserAlertSectionState();
 }
 
 class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
@@ -408,20 +340,27 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final phoneNumber = prefs.getString('logged_in_phone');
-      
+
       if (phoneNumber != null) {
         final user = await _supabaseService.getUserByPhone(phoneNumber);
         if (user != null && user.userId != null) {
           // Get recent transactions
-          final transactions = await _supabaseService.getUserTransactions(user.userId!, limit: 10);
-          
+          final transactions = await _supabaseService.getUserTransactions(
+            user.userId!,
+            limit: 10,
+          );
+
           // Find the most recent transaction with unknown/unverified user
           for (var tx in transactions) {
             // Check if transaction is with unknown user (not trusted and not verified)
-            if (tx.isTrustedContact == false || (tx.isTrustedContact == null && tx.isVerifiedContact == false)) {
+            if (tx.isTrustedContact == false ||
+                (tx.isTrustedContact == null &&
+                    tx.isVerifiedContact == false)) {
               // Try to get user info
               try {
-                final receiver = await _supabaseService.getUserByUpiId(tx.receiverUpi);
+                final receiver = await _supabaseService.getUserByUpiId(
+                  tx.receiverUpi,
+                );
                 if (mounted) {
                   setState(() {
                     _unknownUserTransaction = tx;
@@ -445,7 +384,7 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
           }
         }
       }
-      
+
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -468,7 +407,9 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final receiverName = _unknownUser?.fullName ?? _unknownUserTransaction!.receiverUpi.split('@').first;
+    final receiverName =
+        _unknownUser?.fullName ??
+        _unknownUserTransaction!.receiverUpi.split('@').first;
     final amount = _unknownUserTransaction!.amount;
 
     return Padding(
@@ -480,20 +421,31 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark
-                ? [const Color(0xFF1E1B1B), const Color(0xFF121212)]
-                : [const Color(0xFFFFF5F5), const Color(0xFFFFE8E8)],
+                ? [
+                    const Color(0xFF4A1A1A).withOpacity(0.8),
+                    const Color(0xFF2A0A0A).withOpacity(0.9),
+                    const Color(0xFF1A0505),
+                  ]
+                : [
+                    const Color(0xFFFFE8E8),
+                    const Color(0xFFFFD1D1),
+                    const Color(0xFFFFC7C7),
+                  ],
           ),
           borderRadius: BorderRadius.circular(32),
           border: Border.all(
-            color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFFD1D1),
+            color: isDark
+                ? AppColors.dangerRed.withOpacity(0.3)
+                : AppColors.dangerRed.withOpacity(0.2),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+              color: AppColors.dangerRed.withOpacity(isDark ? 0.2 : 0.1),
               blurRadius: 20,
               offset: const Offset(0, 10),
-            )
+              spreadRadius: 2,
+            ),
           ],
         ),
         child: Column(
@@ -503,12 +455,16 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFFDADA),
+                    color: isDark
+                        ? const Color(0xFF450A0A)
+                        : const Color(0xFFFFDADA),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
                     Icons.warning_rounded,
-                    color: isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48),
+                    color: isDark
+                        ? const Color(0xFFF87171)
+                        : const Color(0xFFE11D48),
                     size: 24,
                   ),
                 ),
@@ -520,16 +476,22 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            "Unknown User Payment",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 16,
-                              color: isDark ? Colors.white : Colors.black,
+                          Expanded(
+                            child: Text(
+                              "Unknown User Payment",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: isDark ? Colors.white : Colors.black,
+                              ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFE11D48).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
@@ -537,7 +499,9 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
                             child: Text(
                               "UNVERIFIED",
                               style: TextStyle(
-                                color: isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48),
+                                color: isDark
+                                    ? const Color(0xFFF87171)
+                                    : const Color(0xFFE11D48),
                                 fontSize: 9,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 0.5,
@@ -552,7 +516,9 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                          color: isDark
+                              ? const Color(0xFFFCA5A5)
+                              : const Color(0xFF991B1B),
                         ),
                       ),
                     ],
@@ -567,7 +533,9 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
                 color: isDark ? const Color(0xFF2D2D2D) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
+                  color: isDark
+                      ? const Color(0xFF450A0A)
+                      : const Color(0xFFFEE2E2),
                   width: 1,
                 ),
               ),
@@ -652,13 +620,19 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
                   // Navigate to transaction details or contact verification
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isDark ? const Color(0xFF2D2D2D) : Colors.white,
-                  foregroundColor: isDark ? Colors.white : const Color(0xFFE11D48),
+                  backgroundColor: isDark
+                      ? const Color(0xFF2D2D2D)
+                      : Colors.white,
+                  foregroundColor: isDark
+                      ? Colors.white
+                      : const Color(0xFFE11D48),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
-                      color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
+                      color: isDark
+                          ? const Color(0xFF450A0A)
+                          : const Color(0xFFFEE2E2),
                     ),
                   ),
                 ),
@@ -706,7 +680,9 @@ class _FraudIntelligenceSection extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.blue.shade300 : const Color(0xFF1A56DB),
+                  color: isDark
+                      ? Colors.blue.shade300
+                      : const Color(0xFF1A56DB),
                 ),
               ),
             ],
@@ -719,20 +695,31 @@ class _FraudIntelligenceSection extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: isDark
-                    ? [const Color(0xFF1E1B1B), const Color(0xFF121212)]
-                    : [const Color(0xFFFFF5F5), const Color(0xFFFFE8E8)],
+                    ? [
+                        const Color(0xFF4A1A1A).withOpacity(0.8),
+                        const Color(0xFF2A0A0A).withOpacity(0.9),
+                        const Color(0xFF1A0505),
+                      ]
+                    : [
+                        const Color(0xFFFFE8E8),
+                        const Color(0xFFFFD1D1),
+                        const Color(0xFFFFC7C7),
+                      ],
               ),
               borderRadius: BorderRadius.circular(32),
               border: Border.all(
-                color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFFD1D1),
+                color: isDark
+                    ? AppColors.dangerRed.withOpacity(0.3)
+                    : AppColors.dangerRed.withOpacity(0.2),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                  color: AppColors.dangerRed.withOpacity(isDark ? 0.2 : 0.1),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
-                )
+                  spreadRadius: 2,
+                ),
               ],
             ),
             child: Column(
@@ -742,12 +729,16 @@ class _FraudIntelligenceSection extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFFDADA),
+                        color: isDark
+                            ? const Color(0xFF450A0A)
+                            : const Color(0xFFFFDADA),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Icon(
                         Icons.gpp_maybe_rounded,
-                        color: isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48),
+                        color: isDark
+                            ? const Color(0xFFF87171)
+                            : const Color(0xFFE11D48),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -767,15 +758,22 @@ class _FraudIntelligenceSection extends StatelessWidget {
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFE11D48).withOpacity(0.1),
+                                  color: const Color(
+                                    0xFFE11D48,
+                                  ).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   "HIGH RISK",
                                   style: TextStyle(
-                                    color: isDark ? const Color(0xFFF87171) : const Color(0xFFE11D48),
+                                    color: isDark
+                                        ? const Color(0xFFF87171)
+                                        : const Color(0xFFE11D48),
                                     fontSize: 9,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.5,
@@ -789,7 +787,9 @@ class _FraudIntelligenceSection extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                              color: isDark
+                                  ? const Color(0xFFFCA5A5)
+                                  : const Color(0xFF991B1B),
                             ),
                           ),
                         ],
@@ -814,22 +814,31 @@ class _FraudIntelligenceSection extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? const Color(0xFF2D2D2D) : Colors.white,
-                      foregroundColor: isDark ? Colors.white : const Color(0xFFE11D48),
+                      backgroundColor: isDark
+                          ? const Color(0xFF2D2D2D)
+                          : Colors.white,
+                      foregroundColor: isDark
+                          ? Colors.white
+                          : const Color(0xFFE11D48),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                         side: BorderSide(
-                          color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2),
+                          color: isDark
+                              ? const Color(0xFF450A0A)
+                              : const Color(0xFFFEE2E2),
                         ),
                       ),
                     ),
                     child: const Text(
                       "Review Security Log",
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -868,11 +877,13 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
 
       if (currentPhone != null) {
         final currentUser = allUsers.firstWhere(
-              (u) => u.phoneNumber == currentPhone,
+          (u) => u.phoneNumber == currentPhone,
           orElse: () => throw Exception("User not found"),
         );
 
-        final contacts = allUsers.where((u) => u.phoneNumber != currentPhone).toList();
+        final contacts = allUsers
+            .where((u) => u.phoneNumber != currentPhone)
+            .toList();
 
         if (mounted) {
           setState(() {
@@ -898,50 +909,55 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
           child: Text(
             "Trusted Contacts",
             style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primaryText(context)),
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primaryText(context),
+            ),
           ),
         ),
         const SizedBox(height: 20),
         _isLoading
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ..._contacts.map((user) => Padding(
-                padding: const EdgeInsets.only(right: 24),
-                child: ContactAvatar(
-                  name: user.fullName,
-                  onTap: () {
-                    if (_currentUserUpi == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("User profile not loaded")),
-                      );
-                      return;
-                    }
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ContactDetailScreen(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ..._contacts.map(
+                      (user) => Padding(
+                        padding: const EdgeInsets.only(right: 24),
+                        child: ContactAvatar(
                           name: user.fullName,
-                          upiId: user.upiId,
-                          currentUserUpi: _currentUserUpi!,
+                          onTap: () {
+                            if (_currentUserUpi == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("User profile not loaded"),
+                                ),
+                              );
+                              return;
+                            }
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ContactDetailScreen(
+                                  name: user.fullName,
+                                  upiId: user.upiId,
+                                  currentUserUpi: _currentUserUpi!,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    );
-                  },
+                    ),
+                    _buildAddButton(),
+                  ],
                 ),
-              )),
-              _buildAddButton(),
-            ],
-          ),
-        ),
+              ),
       ],
     );
   }
@@ -950,7 +966,8 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
     return Column(
       children: [
         Container(
-          width: 72, height: 72,
+          width: 72,
+          height: 72,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1.5),
@@ -958,66 +975,15 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
           child: Icon(Icons.add, color: Colors.grey.shade400, size: 28),
         ),
         const SizedBox(height: 12),
-        Text("Add New",
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade500)),
-      ],
-    );
-  }
-}
-
-class BottomNav extends StatefulWidget {
-  const BottomNav({super.key});
-
-  @override
-  State<BottomNav> createState() => _BottomNavState();
-}
-
-class _BottomNavState extends State<BottomNav> {
-  int selectedIndex = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 90,
-      decoration: BoxDecoration(
-        color: AppColors.surface(context),
-        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.1))),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _navItem(0, Icons.home_filled, "Home"),
-          _navItem(1, Icons.account_balance_wallet_rounded, "Money"),
-          _navItem(2, Icons.person_rounded, "Profile"),
-        ],
-      ),
-    );
-  }
-
-  Widget _navItem(int index, IconData icon, String label) {
-    bool isSelected = selectedIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => selectedIndex = index),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFFF0F4FF) : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(icon, color: isSelected ? const Color(0xFF1A56DB) : const Color(0xFF94A3B8), size: 26),
+        Text(
+          "Add New",
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade500,
           ),
-          const SizedBox(height: 4),
-          Text(label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? const Color(0xFF1A56DB) : const Color(0xFF94A3B8),
-              )),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

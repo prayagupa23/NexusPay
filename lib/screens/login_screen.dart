@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Added for Haptics
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../theme/app_colors.dart';
 import '../services/supabase_service.dart';
 import '../utils/supabase_config.dart';
 import '../models/user_model.dart';
 import 'home_screen.dart';
+import 'package:heisenbug/core/user_session.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -42,74 +44,100 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final pinBoxSize = screenWidth / 5.3;
+
     return Scaffold(
+      resizeToAvoidBottomInset: false, // ⭐ CRITICAL FIX
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new, color: AppColors.primaryText(context), size: 20),
-            onPressed: () => Navigator.pop(context),
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.primaryText(context),
+            size: 20,
           ),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                _buildHeader(context),
-                const SizedBox(height: 40),
-                if (_errorMessage != null) _buildErrorCard(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.only(
+                left: 28,
+                right: 28,
+                top: 8,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
+                ),
+                child: IntrinsicHeight(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 12),
+                        _buildHeader(context),
+                        const SizedBox(height: 32),
 
-                _buildSectionLabel('PHONE NUMBER'),
-                _buildPhoneField(context),
+                        if (_errorMessage != null) _buildErrorCard(),
 
-                const SizedBox(height: 32),
+                        _buildSectionLabel('PHONE NUMBER'),
+                        _buildPhoneField(context),
 
-                _buildPinHeader(context),
-                _buildPinDisplay(context),
+                        const SizedBox(height: 28),
 
-                // Hidden field for logic
-                SizedBox(
-                  height: 0,
-                  child: TextFormField(
-                    controller: _pinController,
-                    focusNode: _pinFocusNode,
-                    keyboardType: TextInputType.number,
-                    maxLength: 4,
-                    autofocus: true,
-                    onChanged: (v) {
-                      setState(() {});
-                      if (v.length == 4) _handleLogin();
-                    },
-                    decoration: const InputDecoration(border: InputBorder.none, counterText: ''),
+                        _buildPinHeader(context),
+                        const SizedBox(height: 12),
+                        _buildPinDisplay(context, pinBoxSize),
+
+                        // ✅ Hidden PIN input with ZERO layout impact
+                        Offstage(
+                          offstage: true,
+                          child: TextFormField(
+                            controller: _pinController,
+                            focusNode: _pinFocusNode,
+                            keyboardType: TextInputType.number,
+                            maxLength: 4,
+                            autofocus: true,
+                            onChanged: (v) {
+                              setState(() {});
+                              if (v.length == 4) _handleLogin();
+                            },
+                            decoration: const InputDecoration(counterText: ''),
+                          ),
+                        ),
+
+                        const SizedBox(height: 36),
+                        _buildLoginButton(),
+                        const SizedBox(height: 8),
+                        _buildForgotPin(context),
+
+                        const Spacer(),
+                        const SizedBox(height: 24),
+                        _buildSecurityFooter(context),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
                   ),
                 ),
-
-                const SizedBox(height: 48),
-                _buildLoginButton(),
-                _buildForgotPin(context),
-
-                const SizedBox(height: 40),
-                _buildSecurityFooter(context),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  // --- UI Builder Methods ---
+  // ---------------- UI Builders ----------------
 
   Widget _buildHeader(BuildContext context) {
     return Column(
@@ -130,7 +158,6 @@ class _LoginScreenState extends State<LoginScreen> {
           style: TextStyle(
             fontSize: 16,
             color: AppColors.secondaryText(context),
-            fontWeight: FontWeight.w400,
           ),
         ),
       ],
@@ -156,21 +183,23 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextFormField(
       controller: _phoneController,
       keyboardType: TextInputType.phone,
-      style: TextStyle(color: AppColors.primaryText(context), fontSize: 18, fontWeight: FontWeight.w600),
+      style: TextStyle(
+        color: AppColors.primaryText(context),
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+      ),
       decoration: InputDecoration(
         hintText: 'Enter 10-digit number',
-        prefixIcon: Icon(Icons.phone_iphone_rounded, color: AppColors.primaryBlue),
+        prefixIcon: Icon(
+          Icons.phone_iphone_rounded,
+          color: AppColors.primaryBlue,
+        ),
         filled: true,
         fillColor: AppColors.surface(context),
         contentPadding: const EdgeInsets.all(20),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(
+        border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: AppColors.secondarySurface(context), width: 1.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: AppColors.primaryBlue, width: 2),
+          borderSide: BorderSide.none,
         ),
       ),
     );
@@ -184,36 +213,44 @@ class _LoginScreenState extends State<LoginScreen> {
         IconButton(
           onPressed: () => setState(() => _obscurePin = !_obscurePin),
           icon: Icon(
-            _obscurePin ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            _obscurePin
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
             size: 20,
             color: AppColors.mutedText(context),
           ),
-        )
+        ),
       ],
     );
   }
 
-  Widget _buildPinDisplay(BuildContext context) {
+  Widget _buildPinDisplay(BuildContext context, double size) {
     return GestureDetector(
       onTap: () => _pinFocusNode.requestFocus(),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(4, (index) {
-          bool isFilled = index < _pinController.text.length;
+          final isFilled = index < _pinController.text.length;
           return Container(
-            width: 70,
-            height: 75,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
-              color: isFilled ? AppColors.primaryBlue.withOpacity(0.05) : AppColors.surface(context),
+              color: isFilled
+                  ? AppColors.primaryBlue.withOpacity(0.05)
+                  : AppColors.surface(context),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isFilled ? AppColors.primaryBlue : AppColors.secondarySurface(context),
+                color: isFilled
+                    ? AppColors.primaryBlue
+                    : AppColors.secondarySurface(context),
                 width: isFilled ? 2 : 1.5,
               ),
             ),
             child: Center(
               child: Text(
-                isFilled ? (_obscurePin ? '●' : _pinController.text[index]) : '',
+                isFilled
+                    ? (_obscurePin ? '●' : _pinController.text[index])
+                    : '',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -228,29 +265,42 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginButton() {
-    return Container(
-        width: double.infinity,
-        height: 62,
-        decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryBlue.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-        ),
-        child: ElevatedButton(
+    return SizedBox(
+      width: double.infinity,
+      height: 62,
+      child: ElevatedButton(
         onPressed: _isLoading ? null : _handleLogin,
         style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primaryBlue,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-    elevation: 0,
-    ),
-    child: _isLoading
-    ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-        : const Text('Sign In', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
-    ),
+          backgroundColor: AppColors.primaryBlue,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+        child: _isLoading
+            ? const CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              )
+            : const Text(
+                'Sign In',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildForgotPin(BuildContext context) {
+    return Center(
+      child: TextButton(
+        onPressed: () {},
+        child: Text(
+          'Trouble signing in?',
+          style: TextStyle(
+            color: AppColors.primaryBlue,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 
@@ -263,14 +313,17 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.lock_person_rounded, color: AppColors.successGreen, size: 22),
+          Icon(
+            Icons.lock_person_rounded,
+            color: AppColors.successGreen,
+            size: 22,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               'End-to-end encrypted connection',
               style: TextStyle(
                 fontSize: 13,
-                fontWeight: FontWeight.w500,
                 color: AppColors.primaryText(context).withOpacity(0.7),
               ),
             ),
@@ -282,21 +335,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildErrorCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF1F1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red.withOpacity(0.2)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_rounded, color: Colors.redAccent, size: 24),
+          const Icon(Icons.error_rounded, color: Colors.redAccent),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               _errorMessage!,
-              style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500),
+              style: const TextStyle(color: Colors.redAccent),
             ),
           ),
         ],
@@ -304,46 +356,46 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildForgotPin(BuildContext context) {
-    return Center(
-      child: TextButton(
-        onPressed: () {},
-        child: Text(
-          'Trouble signing in?',
-          style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.w600),
-        ),
-      ),
+  // ---------------- Logic ----------------
+
+Future<void> _handleLogin() async {
+  HapticFeedback.mediumImpact();
+  setState(() => _errorMessage = null);
+
+  setState(() => _isLoading = true);
+  try {
+    final user = await _supabaseService.getUserByPhone(
+      _phoneController.text.trim(),
     );
-  }
 
-  Future<void> _handleLogin() async {
-    HapticFeedback.mediumImpact();
-    setState(() => _errorMessage = null);
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-    // ... logic remains same as original but with added error feedback
-    try {
-      final user = await _supabaseService.getUserByPhone(_phoneController.text.trim());
-      if (user == null || user.pin != _pinController.text.trim()) {
-        throw Exception('Invalid credentials');
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('logged_in_phone', _phoneController.text.trim());
-
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-            context, MaterialPageRoute(builder: (_) => const HomeScreen()), (_) => false);
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = "The phone number or PIN is incorrect.";
-        _isLoading = false;
-        _pinController.clear();
-      });
-      HapticFeedback.vibrate();
+    if (user == null || user.pin != _pinController.text.trim()) {
+      throw Exception();
     }
+
+    // ✅ THIS IS THE CRITICAL LINE
+    UserSession.userId = user.userId; // <-- store once
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'logged_in_phone',
+      _phoneController.text.trim(),
+    );
+
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (_) => false,
+      );
+    }
+  } catch (_) {
+    setState(() {
+      _errorMessage = 'The phone number or PIN is incorrect.';
+      _isLoading = false;
+      _pinController.clear();
+    });
+    HapticFeedback.vibrate();
   }
 }
 
+}

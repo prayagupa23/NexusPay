@@ -6,12 +6,14 @@ class TransactionModel {
   final String receiverUpi;
   final double amount;
   final String deviceId;
+  final String? receiverDevice;
   final String? location;
   final String status; // 'SUCCESS', 'PENDING', 'CANCELLED'
   final String? utrReference;
   final DateTime? createdAt;
   final bool? isTrustedContact; // Whether the receiver is a trusted contact
-  final bool? isVerifiedContact; // Whether the contact was verified via phone API
+  final bool?
+  isVerifiedContact; // Whether the contact was verified via phone API
 
   TransactionModel({
     this.id,
@@ -19,6 +21,7 @@ class TransactionModel {
     required this.receiverUpi,
     required this.amount,
     required this.deviceId,
+    this.receiverDevice,
     this.location,
     required this.status,
     this.utrReference,
@@ -35,6 +38,7 @@ class TransactionModel {
       'receiver_upi': receiverUpi,
       'amount': amount.toString(),
       'device_id': deviceId,
+      if (receiverDevice != null) 'receiver_device': receiverDevice,
       if (location != null) 'location': location,
       'status': status,
       if (utrReference != null) 'utr_reference': utrReference,
@@ -54,6 +58,7 @@ class TransactionModel {
           ? double.parse(map['amount'] as String)
           : (map['amount'] as num).toDouble(),
       deviceId: map['device_id'] as String,
+      receiverDevice: map['receiver_device'] as String?,
       location: map['location'] as String?,
       status: map['status'] as String,
       utrReference: map['utr_reference'] as String?,
@@ -67,7 +72,6 @@ class TransactionModel {
 
   // Generate UTR Reference
   static String generateUtrReference() {
-    return 'UTR${DateTime.now().millisecondsSinceEpoch}${const Uuid().v4().substring(0, 8).toUpperCase()}';
+    return 'UTR${DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30)).millisecondsSinceEpoch}${const Uuid().v4().substring(0, 8).toUpperCase()}';
   }
 }
-

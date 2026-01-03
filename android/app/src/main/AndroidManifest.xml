@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="heisenbug"
+        android:label="NexusPay"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         >

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_device_name/flutter_device_name.dart';
 import '../models/user_model.dart';
 import '../models/user_profile_model.dart';
 import '../models/transaction_model.dart';
@@ -226,7 +227,10 @@ class SupabaseService {
   }
 
   // Update bank balance
-  Future<UserProfileModel> updateBankBalance(int userId, double newBalance) async {
+  Future<UserProfileModel> updateBankBalance(
+    int userId,
+    double newBalance,
+  ) async {
     try {
       final response = await _client
           .from('user_profile')
@@ -261,7 +265,9 @@ class SupabaseService {
   }
 
   // Create transaction
-  Future<TransactionModel> createTransaction(TransactionModel transaction) async {
+  Future<TransactionModel> createTransaction(
+    TransactionModel transaction,
+  ) async {
     try {
       final response = await _client
           .from('transactions')
@@ -276,7 +282,10 @@ class SupabaseService {
   }
 
   // Get user transactions
-  Future<List<TransactionModel>> getUserTransactions(int userId, {int? limit}) async {
+  Future<List<TransactionModel>> getUserTransactions(
+    int userId, {
+    int? limit,
+  }) async {
     try {
       var query = _client
           .from('transactions')
@@ -299,7 +308,10 @@ class SupabaseService {
   }
 
   // Get or create user transaction context
-  Future<UserTransactionContextModel> getOrCreateUserContext(int userId, String userUpiId) async {
+  Future<UserTransactionContextModel> getOrCreateUserContext(
+    int userId,
+    String userUpiId,
+  ) async {
     try {
       final response = await _client
           .from('user_transaction_context')
@@ -363,6 +375,18 @@ class SupabaseService {
     String? location,
   }) async {
     try {
+      // Fetch device name silently
+      String receiverDevice = 'Unknown Device';
+      try {
+        receiverDevice = await DeviceName().getName() ?? 'Unknown Device';
+      } catch (e) {
+        debugPrint('Error fetching device name: $e');
+        // Continue with default device name
+      }
+
+      // Set default location to Mumbai if not provided
+      location = location ?? 'Mumbai';
+
       // Get user to check balance and get UPI ID
       final userResponse = await _client
           .from('upi_user')
@@ -389,30 +413,33 @@ class SupabaseService {
       // Check if receiver is a trusted contact
       bool isTrustedContact = false;
       bool isVerifiedContact = false;
-      
+
       // Get receiver user
       final receiver = await getUserByUpiId(receiverUpi);
-      
+
       if (receiver != null) {
         // Check if receiver is in trusted contacts (exists in our system)
         final allUsers = await getAllUsers();
         final currentUserPhone = user.phoneNumber;
-        
+
         // Check if we've transacted with this user before
         final previousTransactions = await getUserTransactions(userId);
         isTrustedContact = previousTransactions.any(
           (tx) => tx.receiverUpi == receiverUpi,
         );
-        
+
         // Verify phone number using Numlookup API
         try {
           final phoneVerificationService = PhoneVerificationService();
           final phoneNumber = '+91${receiver.phoneNumber}';
-          final verificationResult = await phoneVerificationService.validatePhoneNumber(phoneNumber);
-          
+          final verificationResult = await phoneVerificationService
+              .validatePhoneNumber(phoneNumber);
+
           if (verificationResult != null && verificationResult.valid) {
             isVerifiedContact = true;
-            debugPrint('Contact verified: ${receiver.fullName} - ${verificationResult.location}');
+            debugPrint(
+              'Contact verified: ${receiver.fullName} - ${verificationResult.location}',
+            );
           }
         } catch (e) {
           debugPrint('Phone verification error: $e');
@@ -423,15 +450,19 @@ class SupabaseService {
       // Generate UTR reference
       final utrReference = TransactionModel.generateUtrReference();
 
-      // Create transaction with verification status
+      // Create transaction with verification status and device info
       final transaction = TransactionModel(
         userId: userId,
         receiverUpi: receiverUpi,
         amount: amount,
         deviceId: deviceId,
+        receiverDevice: receiverDevice,
         location: location,
         status: 'SUCCESS',
         utrReference: utrReference,
+        createdAt: DateTime.now().toUtc().add(
+          const Duration(hours: 5, minutes: 30),
+        ), // IST timezone
         isTrustedContact: isTrustedContact,
         isVerifiedContact: isVerifiedContact,
       );
@@ -469,11 +500,15 @@ class SupabaseService {
             await createUserProfile(newReceiverProfile);
           } else {
             // Update existing receiver profile balance
-            final receiverProfile = UserProfileModel.fromMap(receiverProfileResponse);
+            final receiverProfile = UserProfileModel.fromMap(
+              receiverProfileResponse,
+            );
             final receiverCurrentBalance = receiverProfile.bankBalance ?? 0.0;
             final receiverNewBalance = receiverCurrentBalance + amount;
             await updateBankBalance(receiver.userId!, receiverNewBalance);
-            debugPrint('Updated receiver balance: $receiverCurrentBalance + $amount = $receiverNewBalance');
+            debugPrint(
+              'Updated receiver balance: $receiverCurrentBalance + $amount = $receiverNewBalance',
+            );
           }
         } catch (e) {
           // Log error but don't fail the transaction (sender already deducted)
@@ -510,10 +545,19 @@ class SupabaseService {
       final context = await getOrCreateUserContext(userId, userUpiId);
 
       // Update last 5 transactions (keep only last 5)
-      final newReceivers = [receiverUpi, ...context.last5Receivers].take(5).toList();
+      final newReceivers = [
+        receiverUpi,
+        ...context.last5Receivers,
+      ].take(5).toList();
       final newAmounts = [amount, ...context.last5Amounts].take(5).toList();
-      final newTimestamps = [DateTime.now(), ...context.last5Timestamps].take(5).toList();
-      final newDeviceIds = [deviceId, ...context.lastDeviceIds].take(5).toList();
+      final newTimestamps = [
+        DateTime.now(),
+        ...context.last5Timestamps,
+      ].take(5).toList();
+      final newDeviceIds = [
+        deviceId,
+        ...context.lastDeviceIds,
+      ].take(5).toList();
 
       // Calculate average
       final avgAmount = newAmounts.isNotEmpty
@@ -569,4 +613,3 @@ class SupabaseService {
     return e.message;
   }
 }
-

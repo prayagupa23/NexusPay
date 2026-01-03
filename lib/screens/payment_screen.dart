@@ -4,16 +4,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_colors.dart';
 import 'account_selection_screen.dart';
+import 'login_screen.dart';
+import 'package:flutter_device_name/flutter_device_name.dart';
+import 'package:heisenbug/services/transaction_service.dart';
+import 'package:heisenbug/core/user_session.dart';
+import 'package:uuid/uuid.dart';
 
 class PaymentScreen extends StatefulWidget {
   final String name;
   final String upiId;
 
-  const PaymentScreen({
-    super.key,
-    required this.name,
-    required this.upiId,
-  });
+  const PaymentScreen({super.key, required this.name, required this.upiId});
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -35,7 +36,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     HapticFeedback.lightImpact();
     setState(() {
       if (value == 'backspace') {
-        if (_amount.isNotEmpty) _amount = _amount.substring(0, _amount.length - 1);
+        if (_amount.isNotEmpty)
+          _amount = _amount.substring(0, _amount.length - 1);
       } else if (_amount.length < 9) {
         if (value == '.' && _amount.contains('.')) return;
         if (_amount.isEmpty && value == '.') _amount = "0";
@@ -109,8 +111,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                color: AppColors.primaryText(context), size: 20),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: AppColors.primaryText(context),
+              size: 20,
+            ),
           ),
           Text(
             "TRANSFER",
@@ -128,7 +133,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Widget _buildHomeStyleAvatar(Color currentBg) {
-    final String firstLetter = widget.name.isNotEmpty ? widget.name[0].toUpperCase() : '?';
+    final String firstLetter = widget.name.isNotEmpty
+        ? widget.name[0].toUpperCase()
+        : '?';
 
     return Column(
       children: [
@@ -220,24 +227,35 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              _amount.isEmpty ? "0" : _amount,
-              style: TextStyle(
-                fontSize: _amount.length > 5 ? 42 : 56,
-                fontWeight: FontWeight.w900,
-                color: AppColors.primaryText(context),
-                letterSpacing: -1,
-              ),
-            ).animate(target: _amount.isEmpty ? 0 : 1).shimmer(duration: 1.seconds),
+                  _amount.isEmpty ? "0" : _amount,
+                  style: TextStyle(
+                    fontSize: _amount.length > 5 ? 42 : 56,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primaryText(context),
+                    letterSpacing: -1,
+                  ),
+                )
+                .animate(target: _amount.isEmpty ? 0 : 1)
+                .shimmer(duration: 1.seconds),
           ],
         ),
         const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.verified_user_rounded, size: 12, color: AppColors.successGreen),
+            Icon(
+              Icons.verified_user_rounded,
+              size: 12,
+              color: AppColors.successGreen,
+            ),
             SizedBox(width: 4),
             Text(
               "SECURE UPI TRANSACTION",
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.successGreen, letterSpacing: 1),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                color: AppColors.successGreen,
+                letterSpacing: 1,
+              ),
             ),
           ],
         ),
@@ -256,11 +274,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.add_comment_rounded, size: 18, color: AppColors.primaryBlue),
+          Icon(
+            Icons.add_comment_rounded,
+            size: 18,
+            color: AppColors.primaryBlue,
+          ),
           const SizedBox(width: 8),
           Text(
             "Add message",
-            style: TextStyle(fontSize: 13, color: AppColors.secondaryText(context), fontWeight: FontWeight.w700),
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.secondaryText(context),
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -274,7 +300,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
         color: AppColors.surface(context),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, -5)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
         ],
       ),
       child: Column(
@@ -286,8 +316,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
             crossAxisCount: 3,
             childAspectRatio: 1.6,
             children: [
-              ...['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'backspace']
-                  .map((val) => _numpadKey(val, isIcon: val == 'backspace')),
+              ...[
+                '1',
+                '2',
+                '3',
+                '4',
+                '5',
+                '6',
+                '7',
+                '8',
+                '9',
+                '.',
+                '0',
+                'backspace',
+              ].map((val) => _numpadKey(val, isIcon: val == 'backspace')),
             ],
           ),
           const SizedBox(height: 16),
@@ -303,17 +345,61 @@ class _PaymentScreenState extends State<PaymentScreen> {
       borderRadius: BorderRadius.circular(16),
       child: Center(
         child: isIcon
-            ? Icon(Icons.backspace_outlined, color: AppColors.primaryText(context), size: 22)
+            ? Icon(
+                Icons.backspace_outlined,
+                color: AppColors.primaryText(context),
+                size: 22,
+              )
             : Text(
-          label,
-          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.primaryText(context)),
-        ),
+                label,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryText(context),
+                ),
+              ),
       ),
     );
   }
 
   Widget _buildProceedButton() {
     bool enabled = _amount.isNotEmpty && _amount != "0" && _amount != ".";
+    final userId = UserSession.userId;
+
+    if (userId == null) {
+      // Handle null userId - redirect to login or show error
+      return SizedBox(
+        width: double.infinity,
+        height: 60,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.grey,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            elevation: 0,
+          ),
+          onPressed: () {
+            // Navigate back to login since user session is invalid
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (_) => false,
+            );
+          },
+          child: Text(
+            "Session Expired - Tap to Login",
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       width: double.infinity,
       height: 60,
@@ -321,14 +407,33 @@ class _PaymentScreenState extends State<PaymentScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primaryBlue,
           disabledBackgroundColor: AppColors.primaryBlue.withOpacity(0.1),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           elevation: 0,
         ),
-        onPressed: !enabled ? null : () {
+        onPressed: () async {
+          debugPrint('Proceed to Pay pressed');
+          final deviceName = await DeviceName().getName() ?? 'unknown_device';
+          final deviceId = const Uuid().v4(); // Generate UUID for deviceId
+          debugPrint('Device name: $deviceName');
+          debugPrint('Device ID: $deviceId');
+          debugPrint('Creating pending transaction...');
+          final pendingTxnId =
+              await TransactionService.createPendingTransaction(
+                userId: userId,
+                receiverUpi: widget.upiId,
+                amount: _amount,
+                senderDevice: deviceName,
+                deviceId: deviceId,
+              );
+          debugPrint('Pending txn created: $pendingTxnId');
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => AccountSelectionScreen(
+                userId: userId,
+                transactionId: pendingTxnId,
                 name: widget.name,
                 upiId: widget.upiId,
                 amount: _amount,
@@ -338,7 +443,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
         },
         child: Text(
           "Proceed to Pay",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+            letterSpacing: 0.5,
+          ),
         ),
       ),
     );
