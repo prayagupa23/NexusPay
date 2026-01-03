@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 import 'auth_choice_screen.dart';
 import 'pin_lock_screen.dart';
+//import 'package:heisenbug/services/risk_engine_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -20,7 +21,15 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkLoginStatus() async {
     await Future.delayed(const Duration(seconds: 1));
-
+    // final riskResult = await RiskEngineService.evaluateRisk(
+    //   userId: 30,
+    //   transactionId: 'a0f9cc07-ee8c-43ae-8d75-1e210b274402',
+    // );
+    // debugPrint('Verdict: ${riskResult.verdictLabel}');
+    // debugPrint('Risk Score: ${riskResult.riskScore}');
+    // debugPrint('Risk Level: ${riskResult.riskLevelLabel}');
+    // debugPrint('Reasons: ${riskResult.reasons}');      
+    // debugPrint('Summary: ${riskResult.summaryText}');  
     final prefs = await SharedPreferences.getInstance();
     final loggedInPhone = prefs.getString('logged_in_phone');
 

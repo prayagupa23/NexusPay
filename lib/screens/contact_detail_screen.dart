@@ -380,7 +380,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             MaterialPageRoute(
               builder: (_) => PaymentScreen(
                 name: widget.name,    // Matches 'name' in PaymentScreen
-                upiId: widget.upiId,  // Matches 'upiId' in PaymentScreen
+                upiId: widget.upiId, // Matches 'upiId' in PaymentScreen
               ),
             ),
           ).then((value) {

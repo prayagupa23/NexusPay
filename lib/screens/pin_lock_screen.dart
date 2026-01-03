@@ -9,6 +9,7 @@ import 'auth_choice_screen.dart';
 import '../services/supabase_service.dart';
 import '../utils/supabase_config.dart';
 import '../models/user_model.dart';
+import 'package:heisenbug/core/user_session.dart';
 
 class PinLockScreen extends StatefulWidget {
   final String phoneNumber;
@@ -39,6 +40,10 @@ class _PinLockScreenState extends State<PinLockScreen> {
   Future<void> _loadUser() async {
     try {
       final user = await _supabaseService.getUserByPhone(widget.phoneNumber);
+      if (user == null || user.userId == null) {
+        throw Exception('Invalid user session');
+      }
+      UserSession.userId = user.userId; // now safe
       if (mounted) setState(() => _user = user);
     } catch (e) {
       _navigateToAuth();
@@ -122,13 +127,6 @@ class _PinLockScreenState extends State<PinLockScreen> {
       backgroundColor: AppColors.bg(context),
       body: Stack(
         children: [
-          // Background Aesthetic
-          Positioned(
-            top: -100,
-            right: -100,
-            child: CircleAvatar(radius: 150, backgroundColor: AppColors.primaryBlue.withOpacity(0.05)),
-          ),
-
           SafeArea(
             child: Column(
               children: [
@@ -231,12 +229,6 @@ class _PinLockScreenState extends State<PinLockScreen> {
               _numpadRow(['4', '5', '6']),
               _numpadRow(['7', '8', '9']),
               _numpadRow([null, '0', 'backspace']),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: _navigateToAuth,
-                child: Text("SWITCH ACCOUNT",
-                    style: TextStyle(color: AppColors.mutedText(context), fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
-              ),
             ],
           ),
         ),

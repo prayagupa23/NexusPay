@@ -4,14 +4,25 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_colors.dart';
 import 'pin_entry_screen.dart';
+import 'package:heisenbug/models/risk_result.dart';
+import 'package:heisenbug/services/risk_engine_service.dart';
+import 'package:heisenbug/core/user_session.dart';
+import 'package:heisenbug/widgets/risk_warning_sheet.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AccountSelectionScreen extends StatefulWidget {
+  //for risk score engine
+  final int userId;
+  final String transactionId;
+
   final String name;
   final String upiId;
   final String amount;
 
   const AccountSelectionScreen({
     super.key,
+    required this.userId,
+    required this.transactionId,
     required this.name,
     required this.upiId,
     required this.amount,
@@ -22,7 +33,10 @@ class AccountSelectionScreen extends StatefulWidget {
 }
 
 class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
+
+
   // CRASH PROTECTION: Defined locally so it's never null during build
+  bool _isCheckingRisk = false;
   static const Color primaryBlue = Color(0xFF2563EB);
   static const List<Color> avatarColors = [
     primaryBlue,
@@ -278,37 +292,134 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
     );
   }
 
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+
   Widget _buildPayButton() {
+    void _navigateToPinEntry() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PinEntryScreen(
+            amount: widget.amount,
+            bankName: _selectedAccount['name']!,
+            recipientName: widget.name,
+            recipientUpiId: widget.upiId,
+            transactionId: widget.transactionId
+          ),
+        ),
+      );
+    }
+
+    Future<void> _onConfirmAndPayPressed() async {
+      HapticFeedback.heavyImpact();
+
+      try {
+        setState(() {
+          _isCheckingRisk = true;
+        });
+
+        final riskResult = await RiskEngineService.evaluateRisk(
+          userId: widget.userId,
+          transactionId: widget.transactionId,
+        );
+
+        await Supabase.instance.client
+          .from('transactions')
+          .update({
+            'risk_score': riskResult.riskScore,
+            'risk_level': riskResult.riskLevel.name,
+            'risk_verdict': riskResult.verdict.name,
+          })
+          .eq('id', widget.transactionId);
+
+
+        setState(() {
+          _isCheckingRisk = false;
+        });
+
+        // ✅ CASE 1: SAFE → proceed immediately
+        if (riskResult.verdict == RiskVerdict.allow) {
+          _navigateToPinEntry();
+          return;
+        }
+
+        // ✅ CASE 2: WARNING / HIGH ALERT → show modal
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          builder: (_) => RiskWarningSheet(
+            result: riskResult,
+            onCancel: () {
+              Navigator.pop(context); // dismiss modal
+            },
+            onProceed: () async {
+              await Supabase.instance.client
+                .from('transactions')
+                .update({
+                  'risk_acknowledged': true,
+                })
+                .eq('id', widget.transactionId);
+
+              Navigator.pop(context); // dismiss modal
+              _navigateToPinEntry();
+            },
+          ),
+        );
+      } catch (e) {
+        setState(() {
+          _isCheckingRisk = false;
+        });
+
+        _showError(
+          'Unable to verify transaction security. Please try again.',
+        );
+      }
+    }
+
     return SizedBox(
       width: double.infinity,
       height: 64,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primaryBlue,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
           elevation: 0,
         ),
-        onPressed: () {
-          HapticFeedback.heavyImpact();
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PinEntryScreen(
-                amount: widget.amount,
-                bankName: _selectedAccount['name']!,
-                recipientName: widget.name,
-                recipientUpiId: widget.upiId,
+        onPressed: _isCheckingRisk ? null : _onConfirmAndPayPressed,
+        child: _isCheckingRisk
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Text(
+                "Confirm & Pay ₹${widget.amount}",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
               ),
-            ),
-          );
-        },
-        child: Text(
-          'Confirm & Pay ₹${widget.amount}',
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
-        ),
       ),
     );
   }
+
 
   void _showAccountSelection(BuildContext context) {
     showModalBottomSheet(
