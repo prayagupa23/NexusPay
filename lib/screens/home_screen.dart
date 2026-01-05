@@ -16,6 +16,7 @@ import '../models/transaction_model.dart';
 import '../tile/avatar_tile.dart';
 import 'chat_screen.dart';
 import 'money_screen.dart';
+import 'heatmap_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -271,7 +272,17 @@ class _QuickActionsRow extends StatelessWidget {
               );
             },
           ),
-          _actionItem(context, "Heat Maps", Icons.map_rounded),
+          _actionItem(
+            context,
+            "Heat Maps",
+            Icons.map_rounded,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HeatmapScreen()),
+              );
+            },
+          ),
           _actionItem(context, "Detect Fraud", Icons.fact_check_rounded),
         ],
       ),
