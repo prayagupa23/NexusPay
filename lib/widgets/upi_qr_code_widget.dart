@@ -32,21 +32,44 @@ class UpiQrCodeWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.secondarySurface(context), width: 2),
+        border: Border.all(color: AppColors.borderColor(context), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowColor(context),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // QR Code
-          QrImageView(
-            data: payload,
-            version: QrVersions.auto,
-            size: size,
-            backgroundColor: Colors.white,
-            errorCorrectionLevel: QrErrorCorrectLevel.M,
-            padding: const EdgeInsets.all(10),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.bg(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borderColor(context), width: 1),
+            ),
+            child: QrImageView(
+              data: payload,
+              version: QrVersions.auto,
+              size: size - 32, // Account for padding
+              backgroundColor: AppColors.bg(context),
+              eyeStyle: QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: AppColors.primaryText(context).withOpacity(0.8),
+              ),
+              dataModuleStyle: QrDataModuleStyle(
+                dataModuleShape: QrDataModuleShape.square,
+                color: AppColors.primaryText(context).withOpacity(0.9),
+              ),
+              errorCorrectionLevel: QrErrorCorrectLevel.M,
+              padding: const EdgeInsets.all(0),
+            ),
           ),
           const SizedBox(height: 16),
           
@@ -54,7 +77,7 @@ class UpiQrCodeWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.secondarySurface(context),
+              color: AppColors.surface(context),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(

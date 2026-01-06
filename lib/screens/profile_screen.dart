@@ -378,46 +378,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildInfoGrid() {
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(child: _buildSmallDetailCard('Home City', _profile!.city, Icons.explore_rounded)),
-            const SizedBox(width: 16),
-            Expanded(child: _buildSmallDetailCard('Issuer', _profile!.bankName, Icons.account_balance_rounded)),
-          ],
+        _buildSmallDetailCard('City', _profile!.city, Icons.explore_rounded),
+        const SizedBox(height: 8),
+        _buildSmallDetailCard(
+          'Account',
+          _user?.bankAccountNumber.isNotEmpty == true 
+              ? '•••• ${_user!.bankAccountNumber.substring(_user!.bankAccountNumber.length - 4)}' 
+              : 'N/A',
+          Icons.credit_card_rounded,
         ),
-        const SizedBox(height: 16),
-        _buildSmallDetailCard('Member Since',
-            _profile!.profileCreatedAt != null
-                ? '${_profile!.profileCreatedAt!.day} ${_getMonth(_profile!.profileCreatedAt!.month)} ${_profile!.profileCreatedAt!.year}'
-                : 'N/A',
-            Icons.shield_moon_rounded),
+        const SizedBox(height: 8),
+        _buildSmallDetailCard(
+          'Member Since',
+          _profile!.profileCreatedAt != null
+              ? '${_profile!.profileCreatedAt!.day} ${_getMonth(_profile!.profileCreatedAt!.month)} ${_profile!.profileCreatedAt!.year}'
+              : 'N/A',
+          Icons.shield_moon_rounded,
+        ),
+        const SizedBox(height: 8),
+        _buildSmallDetailCard('Bank', _profile!.bankName, Icons.account_balance_rounded),
       ],
     );
   }
 
   Widget _buildSmallDetailCard(String label, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surface(context),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.secondarySurface(context).withOpacity(0.5)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderColor(context).withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: AppColors.primaryBlue.withOpacity(0.08), shape: BoxShape.circle),
-            child: Icon(icon, color: AppColors.primaryBlue, size: 20),
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: AppColors.primaryBlue, size: 16),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppColors.mutedText(context), letterSpacing: 1)),
+                Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.mutedText(context),
+                    letterSpacing: 0.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 2),
-                Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.primaryText(context))),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primaryText(context),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
