@@ -131,10 +131,25 @@ class _AppBarSection extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (_) => const ProfileScreen()),
             ),
-            child: const CircleAvatar(
-              radius: 24,
-              backgroundColor: Color(0xFFFFE4D6),
-              child: Icon(Icons.person, color: Color(0xFFF97316)),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.secondarySurface(context),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.shadowColor(context),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.person_rounded,
+                color: AppColors.primaryText(context).withOpacity(0.8),
+                size: 26,
+              ),
             ),
           ),
         ],

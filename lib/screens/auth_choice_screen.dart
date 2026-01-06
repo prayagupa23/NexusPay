@@ -33,27 +33,41 @@ class AuthChoiceScreen extends StatelessWidget {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 20),
-                  _buildBrandMark(context),
-                  const SizedBox(height: 48),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: IntrinsicHeight(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 20),
+                            _buildBrandMark(context),
+                            const SizedBox(height: 32),
 
-                  _buildHeroText(context),
-                  const SizedBox(height: 16),
-                  _buildRegulatoryBadge(context),
+                            _buildHeroText(context),
+                            const SizedBox(height: 16),
+                            _buildRegulatoryBadge(context),
 
-                  const Spacer(),
+                            const SizedBox(height: 32),
 
-                  _buildFeatureGrid(context),
-                  const SizedBox(height: 48),
+                            _buildFeatureGrid(context),
+                            const Spacer(),
 
-                  _buildActionButtons(context),
-                  const SizedBox(height: 32),
+                            _buildActionButtons(context),
+                            const SizedBox(height: 24),
 
-                  _buildSecurityCard(context),
-                ],
+                            _buildSecurityCard(context),
+                            const SizedBox(height: 8), // Add some bottom padding
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),

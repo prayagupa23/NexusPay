@@ -8,21 +8,13 @@ class ContactAvatar extends StatelessWidget {
   const ContactAvatar({super.key, required this.name, this.onTap});
 
   static Color getAvatarBgColor(String name) {
-    final int hash = name.hashCode;
-    final List<Color> colors = [
-      const Color(0xFFE8F0FF), // Soft Blue (JD Style)
-      const Color(0xFFF5E1FF), // Soft Purple (MK Style)
-      const Color(0xFFE0E7FF), // Indigo
-      const Color(0xFFF3E8FF), // Lavender
-    ];
-    return colors[hash.abs() % colors.length];
+    // Use a consistent dark gray-blue color from the theme
+    return const Color(0xFF2E3A59); // Dark gray-blue color
   }
 
   static Color getAvatarTextColor(Color bg) {
-    if (bg == const Color(0xFFE8F0FF) || bg == const Color(0xFFE0E7FF)) {
-      return const Color(0xFF1A56DB); // Vibrant Deep Blue
-    }
-    return const Color(0xFF9333EA); // Vibrant Purple
+    // Use a light text color that contrasts well with the dark background
+    return Colors.white.withOpacity(0.9);
   }
 
   String get _initials {
@@ -49,14 +41,25 @@ class ContactAvatar extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: bgColor,
-              border: Border.all(color: Colors.white, width: 2.5),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.1),
+                width: 1.5,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                )
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
               ],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  bgColor.withOpacity(0.9),
+                  bgColor.withBlue(bgColor.blue - 30).withOpacity(0.9),
+                ],
+              ),
             ),
             alignment: Alignment.center,
             child: Text(
