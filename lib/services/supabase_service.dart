@@ -177,29 +177,57 @@ class SupabaseService {
     }
   }
 
-  // Update user profile
-  Future<UserProfileModel> updateUserProfile(UserProfileModel profile) async {
+  // Get user profile by UPI ID (for displaying honor scores)
+  Future<UserProfileModel?> getUserProfileByUpiId(String upiId) async {
     try {
-      if (profile.profileId == null) {
-        throw 'Profile ID is required for update';
-      }
-
-      final updateData = profile.toMap();
-      // Remove profile_id and timestamps from update (they're auto-managed)
-      updateData.remove('profile_id');
-      updateData.remove('profile_created_at');
-      updateData['last_updated_at'] = DateTime.now().toIso8601String();
-
       final response = await _client
           .from('user_profile')
-          .update(updateData)
-          .eq('profile_id', profile.profileId!)
-          .select()
-          .single();
-
-      return UserProfileModel.fromMap(response);
+          .select('*, upi_user!inner(upi_id)')
+          .eq('upi_user.upi_id', upiId)
+          .maybeSingle();
+          
+      return response != null ? UserProfileModel.fromMap(response) : null;
+    } catch (e) {
+      debugPrint('Error fetching user profile by UPI ID: $e');
+      return null;
+    }
+  }
+  
+  /// Updates a user's profile with the provided updates
+  /// If [updates] is provided, it will do a partial update with the given fields
+  /// If [profile] is provided, it will update all fields of the profile
+  Future<UserProfileModel> updateUserProfile({
+    String? userId,
+    Map<String, dynamic>? updates,
+    UserProfileModel? profile,
+  }) async {
+    try {
+      if (updates != null && userId != null) {
+        // Partial update with specific fields
+        final response = await _client
+            .from('user_profile')
+            .update(updates)
+            .eq('user_id', userId)
+            .select()
+            .single();
+        return UserProfileModel.fromMap(response);
+      } else if (profile != null) {
+        // Full profile update
+        final response = await _client
+            .from('user_profile')
+            .update(profile.toMap())
+            .eq('user_id', profile.userId)
+            .select()
+            .single();
+        return UserProfileModel.fromMap(response);
+      } else {
+        throw ArgumentError('Either userId with updates or profile must be provided');
+      }
     } on PostgrestException catch (e) {
       throw _handleError(e);
+    } catch (e) {
+      debugPrint('Error updating user profile: $e');
+      rethrow;
     }
   }
 
@@ -590,7 +618,73 @@ class SupabaseService {
     }
   }
 
+  Future<void> syncRecipientHonorScores(String userId, List<Map<String, dynamic>> contacts) async {
+    try {
+      // First, get existing scores from Supabase to minimize updates
+      final existingScores = await _client
+          .from('recipient_honor_scores')
+          .select('number_id, honor_score')
+          .eq('user_id', userId);
+
+      final existingScoresMap = <String, int>{};
+      for (final score in existingScores) {
+        existingScoresMap[score['number_id'] as String] = score['honor_score'] as int;
+      }
+
+      // Prepare batch operations
+      final batch = <Map<String, dynamic>>[];
+      
+      for (final contact in contacts) {
+        final numberId = contact['number_id'] as String?;
+        if (numberId == null || numberId.isEmpty) continue;
+
+        final existingScore = existingScoresMap[numberId];
+        final honorScore = contact['honor_score'] as int? ?? 100;
+        
+        if (existingScore != null) {
+          // Only update if score has changed
+          if (existingScore != honorScore) {
+            batch.add({
+              'user_id': userId,
+              'number_id': numberId,
+              'honor_score': honorScore,
+            });
+          }
+        } else {
+          // New contact, add to batch
+          batch.add({
+            'user_id': userId,
+            'number_id': numberId,
+            'honor_score': honorScore,
+          });
+        }
+      }
+
+      // Process batch operations
+      if (batch.isNotEmpty) {
+        await _client
+            .from('recipient_honor_scores')
+            .upsert(
+              batch,
+              onConflict: 'user_id,number_id',
+              ignoreDuplicates: false,
+            )
+            .select();
+      }
+
+      debugPrint('Successfully synced ${batch.length} contacts to Supabase');
+    } catch (e) {
+      debugPrint('Error syncing recipient honor scores: $e');
+      rethrow;
+    }
+  }
+
   String _handleError(PostgrestException e) {
+    debugPrint('Supabase Error: ${e.message}');
+    debugPrint('Details: ${e.details}');
+    debugPrint('Hint: ${e.hint}');
+    debugPrint('Code: ${e.code}');
+    
     // Handle specific database constraint errors
     if (e.code == '23505') {
       // Unique constraint violation

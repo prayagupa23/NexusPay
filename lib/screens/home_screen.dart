@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:heisenbug/services/contact_sync_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Ensure these imports match your actual file structure
@@ -18,6 +20,9 @@ import 'chat_screen.dart';
 import 'money_screen.dart';
 import 'heatmap_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../models/recipient_honor_score_model.dart';
+import '../services/recipient_honor_score_db.dart';
+import 'trusted_contacts_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,10 +35,26 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _askContactPermissionAndSync();
     // Listen for payment completion to refresh alerts
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForUnknownUserAlerts();
     });
+  }
+
+  Future<void> _askContactPermissionAndSync() async {
+    final status = await Permission.contacts.status;
+    if (!status.isGranted) {
+      final result = await Permission.contacts.request();
+      if (!result.isGranted) return; // User denied, skip sync
+    }
+    // Get user id (phone number or UUID, adjust as needed)
+    final prefs = await SharedPreferences.getInstance();
+    final phoneNumber = prefs.getString('logged_in_phone');
+    if (phoneNumber != null) {
+      final syncService = ContactSyncService(userId: phoneNumber);
+      await syncService.syncContactsToDB();
+    }
   }
 
   Future<void> _checkForUnknownUserAlerts() async {
@@ -868,7 +889,9 @@ class TrustedContactsSection extends StatefulWidget {
 
 class _TrustedContactsSectionState extends State<TrustedContactsSection> {
   late final SupabaseService _supabaseService;
+  final RecipientHonorScoreDB _honorScoreDB = RecipientHonorScoreDB();
   List<UserModel> _contacts = [];
+  List<RecipientHonorScore> _trustedContacts = [];
   String? _currentUserUpi;
   bool _isLoading = true;
 
@@ -877,6 +900,32 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
     super.initState();
     _supabaseService = SupabaseService(SupabaseConfig.client);
     _loadData();
+    _loadTrustedContacts();
+  }
+
+  Future<void> _loadTrustedContacts() async {
+    try {
+      debugPrint('Loading trusted contacts...');
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('logged_in_phone');
+      debugPrint('User ID: $userId');
+      
+      if (userId != null) {
+        final contacts = await _honorScoreDB.getAllScoresForUser(userId);
+        debugPrint('Found ${contacts.length} contacts in DB');
+        final trusted = contacts.where((c) => c.honorScore >= 70).toList();
+        debugPrint('Found ${trusted.length} trusted contacts');
+        
+        setState(() {
+          _trustedContacts = trusted;
+        });
+      } else {
+        debugPrint('No user ID found in SharedPreferences');
+      }
+    } catch (e) {
+      debugPrint('Error loading trusted contacts: $e');
+      debugPrint('Stack trace: ${e is Error ? (e as Error).stackTrace : ''}');
+    }
   }
 
   Future<void> _loadData() async {
@@ -917,13 +966,35 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text(
-            "Trusted Contacts",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primaryText(context),
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Trusted Contacts",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryText(context),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TrustedContactsScreen(),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'View All',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 20),

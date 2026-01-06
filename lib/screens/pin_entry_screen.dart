@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../theme/app_colors.dart';
 import 'package:heisenbug/screens/payment_success_screen.dart';
 import '../services/supabase_service.dart';
+import '../services/recipient_honor_score_db.dart';
 import '../utils/supabase_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -44,6 +45,34 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
   }
 
   Future<void> _processPayment() async {
+    // Honor score restriction logic
+    final db = RecipientHonorScoreDB();
+    final prefs = await SharedPreferences.getInstance();
+    final phoneNumber = prefs.getString('logged_in_phone');
+    if (phoneNumber == null) {
+      setState(() {
+        _errorMessage = 'Session Expired';
+      });
+      return;
+    }
+
+    // Use UPI ID or phone as recipient key
+    final honorScore = await db.getHonorScore(phoneNumber, widget.recipientUpiId) ?? await db.getHonorScore(phoneNumber, widget.recipientName);
+    int score = honorScore?.honorScore ?? 50;
+    final restriction = db.getRestrictionForScore(score);
+    if (restriction['level'] == 'block') {
+      setState(() {
+        _errorMessage = restriction['message'];
+      });
+      HapticFeedback.vibrate();
+      return;
+    } else if (restriction['level'] != 'none') {
+      setState(() {
+        _errorMessage = restriction['message'];
+      });
+      // Allow to proceed after warning (or you could require explicit confirmation)
+    }
+
     if (_pin.length != 4) return;
 
     HapticFeedback.mediumImpact();

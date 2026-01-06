@@ -1,13 +1,17 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../theme/app_colors.dart';
-import 'account_selection_screen.dart';
-import 'login_screen.dart';
 import 'package:flutter_device_name/flutter_device_name.dart';
-import 'package:heisenbug/services/transaction_service.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:heisenbug/core/user_session.dart';
+import 'package:heisenbug/screens/account_selection_screen.dart';
+import 'package:heisenbug/screens/login_screen.dart';
+import 'package:heisenbug/services/supabase_service.dart';
+import 'package:heisenbug/screens/home_screen.dart';
+import 'package:heisenbug/services/transaction_service.dart';
+import 'package:heisenbug/theme/app_colors.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+import 'package:device_info_plus/device_info_plus.dart' as device_info;
 import 'package:uuid/uuid.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -22,6 +26,121 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   String _amount = "";
+  bool _isLoading = true;
+  bool _isBlocked = false;
+  late final supabase.SupabaseClient _supabase;
+  final _supabaseService = SupabaseService(supabase.Supabase.instance.client);
+  String _deviceName = 'Device';
+
+  @override
+  void initState() {
+    super.initState();
+    _supabase = supabase.Supabase.instance.client;
+    _initDeviceInfo();
+    _checkHonorScore();
+  }
+
+  Future<void> _initDeviceInfo() async {
+    try {
+      final deviceInfo = device_info.DeviceInfoPlugin();
+      if (Theme.of(context).platform == TargetPlatform.android) {
+        final androidInfo = await deviceInfo.androidInfo;
+        setState(() {
+          _deviceName = androidInfo.device ?? 'Android Device';
+        });
+      } else if (Theme.of(context).platform == TargetPlatform.iOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        setState(() {
+          _deviceName = iosInfo.name ?? 'iOS Device';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error getting device info: $e');
+    }
+  }
+  
+  Future<void> _checkHonorScore() async {
+    try {
+      // Get current user
+      final currentUser = _supabase.auth.currentUser;
+      if (currentUser == null) {
+        _showErrorAndPop('Low Honor score can\'t proceed with the payment');
+        return;
+      }
+      
+      // Get user profile with honor score
+      final response = await _supabase
+          .from('user_profile')
+          .select()
+          .eq('user_id', currentUser.id)
+          .single();
+          
+      if (response == null) {
+        _showErrorAndPop('Could not load your profile');
+        return;
+      }
+      
+      final honorScore = response['honor_score'] as int? ?? 100;
+      
+      if (honorScore < 30) {
+        setState(() {
+          _isBlocked = true;
+          _isLoading = false;
+        });
+        _showBlockedMessage(honorScore);
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking honor score: $e');
+      // Don't block payment if there's an error checking the score
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+  
+  void _showErrorAndPop(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_LONG,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+    );
+    if (mounted) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      });
+    }
+  }
+  
+  void _showBlockedMessage(int score) {
+    Fluttertoast.showToast(
+      msg: 'Payment blocked! Your honor score ($score) is too low (min 30 required)',
+      toastLength: Toast.LENGTH_LONG,
+      gravity: ToastGravity.CENTER,
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+    
+    // Return to home screen after showing the message
+    if (mounted) {
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
+          );
+        }
+      });
+    }
+  }
 
   // Strictly maintained avatar logic from Home Screen
   static const Color primaryBlue = Color(0xFF2563EB);
@@ -33,7 +152,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   ];
 
   void _onKeyPress(String value) {
-    HapticFeedback.lightImpact();
+    HapticFeedback.mediumImpact();
     setState(() {
       if (value == 'backspace') {
         if (_amount.isNotEmpty)
@@ -53,6 +172,26 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
+    if (_isBlocked) {
+      return Scaffold(
+        backgroundColor: Colors.grey[100],
+        body: const Center(
+          child: Text(
+            'Payment Access Blocked',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+    }
+    
     final avatarColor = _getAvatarColor();
 
     return Scaffold(
