@@ -178,17 +178,21 @@ class _LinkBankAccountScreenState extends State<LinkBankAccountScreen> {
                   child: Icon(Icons.account_balance, size: 40, color: _bankColors[bank]!.withOpacity(0.05)),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _buildBankLogo(bank),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          _bankDisplayNames[bank]!,
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryText(context)),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 2), // Slight nudge down
+                          child: Text(
+                            _bankDisplayNames[bank]!,
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryText(context)),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ],

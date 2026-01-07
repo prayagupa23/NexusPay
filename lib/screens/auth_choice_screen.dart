@@ -14,64 +14,42 @@ class AuthChoiceScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
-      body: Stack(
-        children: [
-          // Background Aesthetic (Subtle Glow/Gradient)
-          Positioned(
-            top: -100,
-            right: -50,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primaryBlue.withOpacity(0.05),
-              ),
-            ),
-          ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildBrandMark(context),
+                        const SizedBox(height: 32),
 
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 20),
-                            _buildBrandMark(context),
-                            const SizedBox(height: 32),
+                        _buildHeroText(context),
+                        const SizedBox(height: 16),
 
-                            _buildHeroText(context),
-                            const SizedBox(height: 16),
-                            _buildRegulatoryBadge(context),
+                        const SizedBox(height: 32),
 
-                            const SizedBox(height: 32),
+                        _buildFeatureGrid(context),
+                        const Spacer(),
 
-                            _buildFeatureGrid(context),
-                            const Spacer(),
-
-                            _buildActionButtons(context),
-                            const SizedBox(height: 24),
-
-                            _buildSecurityCard(context),
-                            const SizedBox(height: 8), // Add some bottom padding
-                          ],
-                        ),
-                      ),
+                        _buildActionButtons(context),
+                        const SizedBox(height: 70),
+                      ],
                     ),
-                  );
-                },
-              ),
-            ),
+                  ),
+                ),
+              );
+            },
           ),
-        ],
+        ),
       ),
     );
   }
@@ -125,31 +103,6 @@ class AuthChoiceScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRegulatoryBadge(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.secondarySurface(context),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.verified_rounded, size: 14, color: AppColors.primaryBlue),
-          const SizedBox(width: 6),
-          Text(
-            'RBI COMPLIANT',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-              color: AppColors.primaryBlue,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildFeatureGrid(BuildContext context) {
     return Row(

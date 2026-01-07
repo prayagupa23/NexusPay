@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_device_name/flutter_device_name.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../core/user_session.dart';
 import '../models/user_model.dart';
 import '../models/user_profile_model.dart';
 import '../models/transaction_model.dart';
@@ -12,6 +14,9 @@ class SupabaseService {
   final SupabaseClient _client;
 
   SupabaseService(this._client);
+  
+  // Getter to access the Supabase client
+  SupabaseClient get client => _client;
 
   // Create a new user
   Future<UserModel> createUser(UserModel user) async {
@@ -279,16 +284,41 @@ class SupabaseService {
   // Get all users (for trusted contacts)
   Future<List<UserModel>> getAllUsers() async {
     try {
-      final response = await _client
+      // Get current user's UPI ID from shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserUpi = prefs.getString('current_user_upi') ?? '';
+      
+      print('Current user UPI from shared prefs: $currentUserUpi');
+      
+      // Build the query
+      var query = _client
           .from('upi_user')
           .select()
           .order('full_name');
 
-      return (response as List)
-          .map((item) => UserModel.fromMap(item as Map<String, dynamic>))
-          .toList();
+      // Execute the query
+      final response = await query;
+      
+      if (response is List) {
+        print('Found ${response.length} users before filtering');
+        
+        // Filter out current user by UPI ID in Dart
+        final filteredUsers = currentUserUpi.isNotEmpty
+            ? response.where((user) => 
+                (user['upi_id'] as String).toLowerCase() != currentUserUpi.toLowerCase())
+            : response;
+        
+        print('After filtering: ${filteredUsers.length} users');
+        
+        return filteredUsers
+            .map((item) => UserModel.fromMap(item as Map<String, dynamic>))
+            .toList();
+      }
+      
+      return [];
     } catch (e) {
-      throw 'Error fetching users: ${e.toString()}';
+      print('Error in getAllUsers: $e');
+      rethrow;
     }
   }
 

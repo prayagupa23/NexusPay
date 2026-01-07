@@ -29,22 +29,22 @@ class _FeatureCarouselState extends State<FeatureCarousel> {
     Feature(
       name: 'Phishing & Fake Link Detection',
       description: 'Detect scam emails, malicious URLs, and fake UPI IDs with our multi-layered protection system. Combines TF-IDF, Logistic Regression, and Random Forest for accurate, real-time detection.',
-      imagePath: 'assets/undraw_data-thief_d66l.svg',
+      imagePath: 'assets/phishing.png',
     ),
     Feature(
       name: 'Transaction Anomaly Detection',
       description: 'Personalized fraud protection that learns your spending patterns. Flags unusual transactions instantly using XGBoost for real-time security.',
-      imagePath: 'assets/undraw_send-money_4qc7.svg',
+      imagePath: 'assets/transaction.png',
     ),
     Feature(
       name: 'Visual Analytics & Heatmaps',
       description: 'Interactive heatmaps show fraud trends and risky patterns. Transforms complex ML data into clear, actionable insights for better security decisions.',
-      imagePath: 'assets/undraw_stock-prices_8nuz.svg',
+      imagePath: 'assets/graphs.png',
     ),
     Feature(
       name: 'Extra Security Layer',
       description: 'Enhanced protection with device alerts, payee trust scoring, and instant transaction freezing. Multiple security layers for complete peace of mind.',
-      imagePath: 'assets/undraw_security_0ubl.svg',
+      imagePath: 'assets/security.png',
     ),
   ];
 

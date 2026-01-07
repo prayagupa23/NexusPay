@@ -55,27 +55,82 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
 
   Future<void> _loadSupabaseUsers() async {
     try {
+      debugPrint('=== START: Loading Supabase Users ===');
       final users = await _supabaseService.getAllUsers();
+      
       if (mounted) {
+        final prefs = await SharedPreferences.getInstance();
+        final currentUserUpi = prefs.getString('current_user_upi') ?? '';
+        
+        debugPrint('Current User UPI from SharedPreferences: $currentUserUpi');
+        debugPrint('Current User ID from Session: $_userId');
+        debugPrint('Total users from Supabase: ${users.length}');
+        
         setState(() {
-          // Filter out current user from the list
-          _supabaseUsers = users
-              .where((user) => user.userId != _userId)
-              .toList();
+          _supabaseUsers = [];
+          for (var user in users) {
+            final isCurrentUser = user.userId == _userId || 
+                               (user.upiId != null && user.upiId!.toLowerCase() == currentUserUpi.toLowerCase());
+            
+            debugPrint('User: ${user.fullName} | UPI: ${user.upiId} | Is Current: $isCurrentUser');
+            
+            if (!isCurrentUser) {
+              _supabaseUsers.add(user);
+            } else {
+              debugPrint('Filtered out current user: ${user.fullName} (${user.upiId})');
+            }
+          }
+          
+          debugPrint('Final filtered users count: ${_supabaseUsers.length}');
         });
       }
+      debugPrint('=== END: Loading Supabase Users ===');
     } catch (e) {
       debugPrint('Error loading Supabase users: $e');
+      if (e is Error) {
+        debugPrint('Stack trace: ${e.stackTrace}');
+      }
     }
   }
 
+  String? _currentUserUpi;
+
   Future<void> _loadUserId() async {
-    // Get current user ID from UserSession
-    setState(() {
-      _userId = UserSession.userId
-          ?.toString(); // Get actual user ID from session
-    });
-    debugPrint('Current user ID: $_userId');
+    try {
+      // Get current user's phone number from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final phoneNumber = prefs.getString('logged_in_phone');
+      
+      if (phoneNumber == null) {
+        debugPrint('No logged in phone number found');
+        return;
+      }
+      
+      debugPrint('Fetching user profile for phone: $phoneNumber');
+      
+      try {
+        // Get user profile using the same method as profile screen
+        final profile = await _supabaseService.getUserProfileByPhone(phoneNumber);
+        
+        if (profile != null) {
+          setState(() {
+            _userId = profile.userId?.toString();
+            _currentUserUpi = profile.upiId;
+          });
+          
+          debugPrint('Fetched current user UPI from profile: $_currentUserUpi');
+          
+          // Store in shared preferences for backward compatibility
+          await prefs.setString('current_user_upi', _currentUserUpi ?? '');
+        } else {
+          debugPrint('No profile found for phone: $phoneNumber');
+        }
+      } catch (e) {
+        debugPrint('Error fetching user profile: $e');
+      }
+    } catch (e) {
+      debugPrint('Error in _loadUserId: $e');
+    }
   }
 
   // Filter contacts based on search query
@@ -133,6 +188,11 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     try {
       setState(() => _isLoading = true);
 
+      // Get current user's UPI ID from shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserUpi = prefs.getString('current_user_upi') ?? '';
+      final currentUserPhoneNumber = currentUserUpi.replaceAll(RegExp(r'[^0-9+]'), '');
+
       // Get all contacts from device
       final contacts = await FlutterContacts.getContacts(
         withProperties: true,
@@ -149,25 +209,29 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         if (contact.phones.isNotEmpty) {
           for (final phone in contact.phones) {
             final phoneNumber = phone.number.replaceAll(RegExp(r'[^0-9+]'), '');
-            if (phoneNumber.isNotEmpty) {
-              // Find matching score or use default
-              final score = scores.firstWhere(
-                (s) => s.numberId == phoneNumber,
-                orElse: () => RecipientHonorScore(
-                  userId: _userId ?? '',
-                  numberId: phoneNumber,
-                  honorScore: 100, // Default score
-                ),
-              );
-
-              contactMaps.add({
-                'name': contact.displayName,
-                'number': phoneNumber,
-                'photo': contact.photo,
-                'honorScore': score.honorScore,
-                'hasPaid': score.honorScore < 100,
-              });
+            
+            // Skip if this is the current user's phone number or if phone number is empty
+            if (phoneNumber.isEmpty || phoneNumber == currentUserPhoneNumber) {
+              continue;
             }
+
+            // Find matching score or use default
+            final score = scores.firstWhere(
+              (s) => s.numberId == phoneNumber,
+              orElse: () => RecipientHonorScore(
+                userId: _userId ?? '',
+                numberId: phoneNumber,
+                honorScore: 100, // Default score
+              ),
+            );
+
+            contactMaps.add({
+              'name': contact.displayName,
+              'number': phoneNumber,
+              'photo': contact.photo,
+              'honorScore': score.honorScore,
+              'hasPaid': score.honorScore < 100,
+            });
           }
         }
       }

@@ -85,10 +85,10 @@ flutter:
   assets:
     - .env
     - assets/icon/nexuspay.png
-    - assets/undraw_data-thief_d66l.svg
-    - assets/undraw_send-money_4qc7.svg
-    - assets/undraw_stock-prices_8nuz.svg
-    - assets/undraw_security_0ubl.svg
+    - assets/phishing.png
+    - assets/transaction.png
+    - assets/graphs.png
+    - assets/security.png
   # To add assets to your application, add an assets section, like this:
 
     

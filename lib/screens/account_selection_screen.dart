@@ -9,6 +9,9 @@ import 'package:heisenbug/services/risk_engine_service.dart';
 import 'package:heisenbug/core/user_session.dart';
 import 'package:heisenbug/widgets/risk_warning_sheet.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/supabase_service.dart';
+import '../utils/supabase_config.dart';
 
 class AccountSelectionScreen extends StatefulWidget {
   //for risk score engine
@@ -37,6 +40,7 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
 
   // CRASH PROTECTION: Defined locally so it's never null during build
   bool _isCheckingRisk = false;
+  bool _isLoading = true;
   static const Color primaryBlue = Color(0xFF2563EB);
   static const List<Color> avatarColors = [
     primaryBlue,
@@ -45,18 +49,75 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
     Color(0xFF7C3AED),
   ];
 
-  final List<Map<String, String>> _accounts = [
-    {'name': 'Union Bank of India', 'shortName': 'UBI', 'accNo': '•••• 1234', 'color': '0xFF991B1B'},
-    {'name': 'HDFC Bank', 'shortName': 'HDFC', 'accNo': '•••• 3456', 'color': '0xFF1E3A8A'},
-    {'name': 'ICICI Bank', 'shortName': 'ICICI', 'accNo': '•••• 7890', 'color': '0xFFEA580C'},
-  ];
-
+  late SupabaseService _supabaseService;
+  List<Map<String, String>> _accounts = [];
   late Map<String, String> _selectedAccount;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _selectedAccount = _accounts.first;
+    _supabaseService = SupabaseService(SupabaseConfig.client);
+    _loadUserAccounts();
+  }
+
+  Future<void> _loadUserAccounts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final phoneNumber = prefs.getString('logged_in_phone');
+      
+      if (phoneNumber == null) {
+        throw 'No active session found';
+      }
+
+      final user = await _supabaseService.getUserByPhone(phoneNumber);
+      
+      if (user != null && user.bankName.isNotEmpty && user.bankAccountNumber.isNotEmpty) {
+        // Format the last 4 digits of the account number
+        final lastFourDigits = user.bankAccountNumber.length > 4 
+            ? user.bankAccountNumber.substring(user.bankAccountNumber.length - 4)
+            : user.bankAccountNumber;
+            
+        // Create a single account entry from the user's data
+        setState(() {
+          _accounts = [
+            {
+              'name': user.bankName,
+              'shortName': _getBankShortName(user.bankName),
+              'accNo': '•••• $lastFourDigits',
+              'color': '0xFF2563EB', // Default color
+            }
+          ];
+          _selectedAccount = _accounts.first;
+          _isLoading = false;
+        });
+      } else {
+        throw 'No bank account found for this user';
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+      debugPrint('Error loading user accounts: $e');
+    }
+  }
+
+  String _getBankShortName(String bankName) {
+    // Extract the first word or abbreviation from the bank name
+    final words = bankName.split(' ');
+    if (words.isEmpty) return 'BANK';
+    
+    // If the first word is a common prefix like 'The', take the next word
+    final firstWord = words.first.toLowerCase();
+    if (firstWord == 'the' || firstWord == 'bank' || firstWord == 'of') {
+      return words.length > 1 ? words[1].substring(0, 2).toUpperCase() : 'BNK';
+    }
+    
+    // Otherwise take the first 3-4 characters of the first word
+    return words.first.length > 3 
+        ? words.first.substring(0, 4).toUpperCase()
+        : words.first.toUpperCase();
   }
 
   Color _getAvatarColor() {
@@ -77,19 +138,23 @@ class _AccountSelectionScreenState extends State<AccountSelectionScreen> {
           children: [
             _buildAppBar(),
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 40),
-                    _buildTrustedAvatar(avatarColor),
-                    const SizedBox(height: 32),
-                    _buildTransactionSummary(),
-                  ],
-                ),
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _errorMessage != null
+                      ? Center(child: Text('Error: $_errorMessage'))
+                      : SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 40),
+                              _buildTrustedAvatar(avatarColor),
+                              const SizedBox(height: 32),
+                              _buildTransactionSummary(),
+                            ],
+                          ),
+                        ),
             ),
-            _buildBottomDrawer(),
+            _isLoading ? const SizedBox.shrink() : _buildBottomDrawer(),
           ],
         ),
       ),

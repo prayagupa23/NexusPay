@@ -78,8 +78,6 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 32),
               const _QuickActionsRow(),
               const SizedBox(height: 32),
-              const _UnknownUserAlertSection(),
-              const SizedBox(height: 32),
               const _FraudIntelligenceSection(),
               const SizedBox(height: 40),
               const TrustedContactsSection(),
@@ -830,7 +828,7 @@ class _FraudIntelligenceSection extends StatelessWidget {
                             ],
                           ),
                           Text(
-                            "Suspicious login attempt detected",
+                            "Unverified Contact Detected",
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
@@ -846,7 +844,7 @@ class _FraudIntelligenceSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  "An unrecognized device tried to access your secure vault. Immediate review recommended.",
+                  "Unverified contact detected. Verify now to ensure your account security.",
                   style: TextStyle(
                     fontSize: 13,
                     height: 1.4,
@@ -878,7 +876,7 @@ class _FraudIntelligenceSection extends StatelessWidget {
                       ),
                     ),
                     child: const Text(
-                      "Review Security Log",
+                      "Verify Contact",
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 14,
@@ -904,73 +902,72 @@ class TrustedContactsSection extends StatefulWidget {
 
 class _TrustedContactsSectionState extends State<TrustedContactsSection> {
   late final SupabaseService _supabaseService;
-  final RecipientHonorScoreDB _honorScoreDB = RecipientHonorScoreDB();
-  List<UserModel> _contacts = [];
-  List<RecipientHonorScore> _trustedContacts = [];
-  String? _currentUserUpi;
+  List<Map<String, dynamic>> _contacts = [];
   bool _isLoading = true;
+  String? _currentUserUpi;
 
   @override
   void initState() {
     super.initState();
     _supabaseService = SupabaseService(SupabaseConfig.client);
     _loadData();
-    _loadTrustedContacts();
-  }
-
-  Future<void> _loadTrustedContacts() async {
-    try {
-      debugPrint('Loading trusted contacts...');
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('logged_in_phone');
-      debugPrint('User ID: $userId');
-      
-      if (userId != null) {
-        final contacts = await _honorScoreDB.getAllScoresForUser(userId);
-        debugPrint('Found ${contacts.length} contacts in DB');
-        final trusted = contacts.where((c) => c.honorScore >= 70).toList();
-        debugPrint('Found ${trusted.length} trusted contacts');
-        
-        setState(() {
-          _trustedContacts = trusted;
-        });
-      } else {
-        debugPrint('No user ID found in SharedPreferences');
-      }
-    } catch (e) {
-      debugPrint('Error loading trusted contacts: $e');
-      debugPrint('Stack trace: ${e is Error ? (e as Error).stackTrace : ''}');
-    }
   }
 
   Future<void> _loadData() async {
     try {
+      debugPrint('Loading user profiles for contacts...');
       final prefs = await SharedPreferences.getInstance();
-      final currentPhone = prefs.getString('logged_in_phone');
+      _currentUserUpi = prefs.getString('current_user_upi');
+      
+      debugPrint('Current user UPI: $_currentUserUpi');
+      
+      if (_currentUserUpi == null) {
+        debugPrint('No current user UPI found, trying to fetch from DB...');
+        // Try to get current user's UPI from the profile
+        final currentPhone = prefs.getString('logged_in_phone');
+        if (currentPhone != null) {
+          final profile = await _supabaseService.getUserProfileByPhone(currentPhone);
+          if (profile != null) {
+            _currentUserUpi = profile.upiId;
+            await prefs.setString('current_user_upi', _currentUserUpi!);
+          }
+        }
+      }
 
-      final allUsers = await _supabaseService.getAllUsers();
+      // Fetch only required fields from user_profile table
+      final response = await _supabaseService.client
+          .from('user_profile')
+          .select('upi_id, full_name')
+          .order('full_name');
 
-      if (currentPhone != null) {
-        final currentUser = allUsers.firstWhere(
-          (u) => u.phoneNumber == currentPhone,
-          orElse: () => throw Exception("User not found"),
-        );
-
-        final contacts = allUsers
-            .where((u) => u.phoneNumber != currentPhone)
+      if (response != null) {
+        debugPrint('Fetched ${response.length} user profiles');
+        
+        // Filter out current user and convert to List<Map>
+        final contacts = (response as List)
+            .where((user) => user['upi_id'] != null && 
+                           user['full_name'] != null &&
+                           user['upi_id'] != _currentUserUpi)
+            .map((user) => {
+                  'upi_id': user['upi_id'] as String,
+                  'full_name': user['full_name'] as String,
+                })
             .toList();
+            
+        debugPrint('Filtered to ${contacts.length} contacts (excluding current user)');
 
         if (mounted) {
           setState(() {
             _contacts = contacts;
-            _currentUserUpi = currentUser.upiId;
             _isLoading = false;
           });
         }
       }
     } catch (e) {
-      debugPrint("Error loading contacts: $e");
-      if (mounted) setState(() => _isLoading = false);
+      debugPrint('Error loading user profiles: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -1026,7 +1023,7 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
                       (user) => Padding(
                         padding: const EdgeInsets.only(right: 24),
                         child: ContactAvatar(
-                          name: user.fullName,
+                          name: user['full_name'],
                           onTap: () {
                             if (_currentUserUpi == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -1041,8 +1038,8 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
                               context,
                               MaterialPageRoute(
                                 builder: (_) => ContactDetailScreen(
-                                  name: user.fullName,
-                                  upiId: user.upiId,
+                                  name: user['full_name'],
+                                  upiId: user['upi_id'],
                                   currentUserUpi: _currentUserUpi!,
                                 ),
                               ),
@@ -1050,7 +1047,7 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
                           },
                         ),
                       ),
-                    ),
+                    ).toList(),
                     _buildAddButton(),
                   ],
                 ),

@@ -60,16 +60,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: AppColors.bg(context),
       extendBodyBehindAppBar: true,
       appBar: _buildCreativeAppBar(),
-      body: Stack(
-        children: [
-          _buildBackgroundBlobs(), // Creative background elements
-          _isLoading
-              ? _buildLoadingState()
-              : _errorMessage != null
+      body: _isLoading
+          ? _buildLoadingState()
+          : _errorMessage != null
               ? _buildErrorState()
               : _buildProfileBody(),
-        ],
-      ),
     );
   }
 
@@ -499,10 +494,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: AlertDialog(
           backgroundColor: AppColors.surface(context),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          title: const Text('End Secure Session?', style: TextStyle(fontWeight: FontWeight.w900)),
-          content: const Text('Are you sure you want to exit your vault?'),
+          title: Text(
+            'End Secure Session?',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: AppColors.primaryText(context),
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to exit your vault?',
+            style: TextStyle(color: AppColors.secondaryText(context)),
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text('CANCEL', style: TextStyle(color: AppColors.mutedText(context), fontWeight: FontWeight.w800))),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'CANCEL',
+                style: TextStyle(
+                  color: AppColors.mutedText(context),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
             ElevatedButton(
               onPressed: _logout,
               style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
@@ -534,13 +547,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: AlertDialog(
           backgroundColor: AppColors.surface(context).withOpacity(0.9),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-          title: const Icon(Icons.lock_person_rounded, size: 48, color: Color(0xFF1A56DB)),
+          title: Icon(Icons.lock_person_rounded, size: 48, color: AppColors.primaryBlue),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('AUTHENTICATION REQUIRED', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
+              Text(
+                'AUTHENTICATION REQUIRED',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                  color: AppColors.primaryText(context),
+                ),
+              ),
               const SizedBox(height: 8),
-              const Text('Enter 4-digit PIN to decrypt balance', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+              Text(
+                'Enter 4-digit PIN to decrypt balance',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.secondaryText(context),
+                ),
+              ),
               const SizedBox(height: 24),
               TextField(
                 controller: pinController,
