@@ -17,6 +17,7 @@ import 'package:heisenbug/services/supabase_service.dart';
 import 'package:heisenbug/models/user_model.dart';
 import 'package:heisenbug/models/user_profile_model.dart';
 import 'package:heisenbug/utils/supabase_config.dart';
+import 'package:heisenbug/core/user_session.dart';
 
 class TrustedContactsScreen extends StatefulWidget {
   const TrustedContactsScreen({super.key});
@@ -29,7 +30,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   final TextEditingController _searchController = TextEditingController();
   late final ContactSyncService _contactSyncService;
   final RecipientHonorScoreDB _db = RecipientHonorScoreDB();
-  
+
   List<Map<String, dynamic>> _allDeviceContacts = [];
   List<Map<String, dynamic>> _filteredContacts = [];
   List<UserModel> _supabaseUsers = [];
@@ -44,7 +45,9 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     _searchController.addListener(_onSearchChanged);
     _supabaseService = SupabaseService(SupabaseConfig.client);
     _loadUserId().then((_) {
-      _contactSyncService = ContactSyncService(userId: _userId ?? 'default_user');
+      _contactSyncService = ContactSyncService(
+        userId: _userId ?? 'default_user',
+      );
       _loadSupabaseUsers();
       _checkPermissionAndLoadContacts();
     });
@@ -55,7 +58,10 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       final users = await _supabaseService.getAllUsers();
       if (mounted) {
         setState(() {
-          _supabaseUsers = users;
+          // Filter out current user from the list
+          _supabaseUsers = users
+              .where((user) => user.userId != _userId)
+              .toList();
         });
       }
     } catch (e) {
@@ -64,10 +70,12 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   }
 
   Future<void> _loadUserId() async {
-    // In a real app, you would get this from your auth service
+    // Get current user ID from UserSession
     setState(() {
-      _userId = 'current_user_id'; // Replace with actual user ID
+      _userId = UserSession.userId
+          ?.toString(); // Get actual user ID from session
     });
+    debugPrint('Current user ID: $_userId');
   }
 
   // Filter contacts based on search query
@@ -79,7 +87,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       });
       return;
     }
-    
+
     setState(() {
       _filteredContacts = _allDeviceContacts.where((contact) {
         final name = contact['name'].toString().toLowerCase();
@@ -88,7 +96,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       }).toList();
     });
   }
-  
+
   Future<void> _syncContacts() async {
     setState(() => _isLoading = true);
     try {
@@ -103,7 +111,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       }
     }
   }
-  
+
   Future<void> _checkPermissionAndLoadContacts() async {
     final status = await Permission.contacts.status;
     if (status.isGranted) {
@@ -120,23 +128,23 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       }
     }
   }
-  
+
   Future<void> _loadContacts() async {
     try {
       setState(() => _isLoading = true);
-      
+
       // Get all contacts from device
       final contacts = await FlutterContacts.getContacts(
         withProperties: true,
         withThumbnail: true,
       );
-      
+
       // Get all honor scores from local DB
       final scores = await _db.getAllScoresForUser(_userId ?? '');
-      
+
       // Process contacts and merge with scores
       final List<Map<String, dynamic>> contactMaps = [];
-      
+
       for (final contact in contacts) {
         if (contact.phones.isNotEmpty) {
           for (final phone in contact.phones) {
@@ -151,7 +159,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                   honorScore: 100, // Default score
                 ),
               );
-              
+
               contactMaps.add({
                 'name': contact.displayName,
                 'number': phoneNumber,
@@ -163,12 +171,12 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
           }
         }
       }
-      
+
       // Sort contacts: paying first (by score desc), then non-paying (by name)
       contactMaps.sort((a, b) {
         final aPaid = a['hasPaid'] as bool;
         final bPaid = b['hasPaid'] as bool;
-        
+
         if (aPaid && !bPaid) return -1;
         if (!aPaid && bPaid) return 1;
         if (aPaid && bPaid) {
@@ -176,7 +184,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         }
         return (a['name'] as String).compareTo(b['name'] as String);
       });
-      
+
       setState(() {
         _allDeviceContacts = contactMaps;
         _filteredContacts = List.from(_allDeviceContacts);
@@ -189,7 +197,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       setState(() => _isLoading = false);
     }
   }
-  
+
   void _showToast(String message, {bool isError = false}) {
     Fluttertoast.showToast(
       msg: message,
@@ -200,7 +208,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       fontSize: 14.0,
     );
   }
-  
+
   void _handleContactTap(Map<String, dynamic> contact) {
     showModalBottomSheet(
       context: context,
@@ -235,9 +243,9 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                   Navigator.pop(context);
                   final prefs = await SharedPreferences.getInstance();
                   final currentUserUpi = prefs.getString('current_user_upi');
-                  
+
                   if (!mounted) return;
-                  
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -294,14 +302,15 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   Widget _buildSupabaseUserTile(UserModel user) {
     final name = user.fullName ?? 'Unknown User';
     final upiId = user.upiId ?? 'No UPI ID';
-    
+
     return FutureBuilder<UserProfileModel?>(
       future: _supabaseService.getUserProfileByUpiId(upiId),
       builder: (context, snapshot) {
         final profile = snapshot.data;
-        final honorScore = profile?.honorScore ?? 100; // Default to 100 if not found
+        final honorScore =
+            profile?.honorScore ?? 100; // Default to 100 if not found
         final scoreColor = _getScoreColor(honorScore);
-        
+
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
           color: AppColors.darkSurface,
@@ -331,7 +340,10 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: scoreColor.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
@@ -384,11 +396,17 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                               Text(upiId),
                               const SizedBox(height: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: scoreColor.withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: scoreColor, width: 1),
+                                  border: Border.all(
+                                    color: scoreColor,
+                                    width: 1,
+                                  ),
                                 ),
                                 child: Text(
                                   'Trust Score: $honorScore/100',
@@ -404,7 +422,10 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                         ),
                         const Divider(height: 1),
                         ListTile(
-                          leading: const Icon(Icons.chat_bubble_outline, color: Colors.blue),
+                          leading: const Icon(
+                            Icons.chat_bubble_outline,
+                            color: Colors.blue,
+                          ),
                           title: const Text('Chat'),
                           onTap: () {
                             Navigator.pop(context);
@@ -421,17 +442,18 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                           },
                         ),
                         ListTile(
-                          leading: const Icon(Icons.send_rounded, color: Colors.blue),
+                          leading: const Icon(
+                            Icons.send_rounded,
+                            color: Colors.blue,
+                          ),
                           title: const Text('Send Money'),
                           onTap: () {
                             Navigator.pop(context);
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => PaymentScreen(
-                                  name: name,
-                                  upiId: upiId,
-                                ),
+                                builder: (context) =>
+                                    PaymentScreen(name: name, upiId: upiId),
                               ),
                             );
                           },
@@ -460,7 +482,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         color: AppColors.darkSurface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: hasPaid 
+          color: hasPaid
               ? AppColors.primaryBlue.withOpacity(0.5)
               : AppColors.darkSecondarySurface,
           width: 1,
@@ -500,10 +522,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
             if (hasPaid)
               const Text(
                 'Paid Before',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: Colors.green, fontSize: 12),
               ),
           ],
         ),
@@ -525,13 +544,13 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       backgroundColor: AppColors.primaryBlue,
       radius: 24,
       child: Text(
-        contact['name']?.isNotEmpty == true 
-            ? contact['name'][0].toUpperCase() 
+        contact['name']?.isNotEmpty == true
+            ? contact['name'][0].toUpperCase()
             : '?',
         style: const TextStyle(
-          color: Colors.white, 
-          fontSize: 20, 
-          fontWeight: FontWeight.w500
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
@@ -559,7 +578,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     Colors.pink[700]!,
     Colors.indigo[700]!,
   ];
-  
+
   Color _getScoreColor(int score) {
     if (score >= 80) return AppColors.successGreen;
     if (score >= 50) return AppColors.warningYellow;
@@ -611,19 +630,26 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
 
   Widget _buildContactList() {
     final searchQuery = _searchController.text.toLowerCase();
-    
+
     // Filter and limit Supabase users to 6
-    final filteredSupabaseUsers = _supabaseUsers.where((user) {
-      final name = user.fullName?.toLowerCase() ?? '';
-      final upiId = user.upiId?.toLowerCase() ?? '';
-      return searchQuery.isEmpty || name.contains(searchQuery) || upiId.contains(searchQuery);
-    }).take(6).toList();
+    final filteredSupabaseUsers = _supabaseUsers
+        .where((user) {
+          final name = user.fullName?.toLowerCase() ?? '';
+          final upiId = user.upiId?.toLowerCase() ?? '';
+          return searchQuery.isEmpty ||
+              name.contains(searchQuery) ||
+              upiId.contains(searchQuery);
+        })
+        .take(6)
+        .toList();
 
     // Filter device contacts
     final filteredDeviceContacts = _filteredContacts.where((contact) {
       final name = contact['name']?.toString().toLowerCase() ?? '';
       final number = contact['number']?.toString().toLowerCase() ?? '';
-      return searchQuery.isEmpty || name.contains(searchQuery) || number.contains(searchQuery);
+      return searchQuery.isEmpty ||
+          name.contains(searchQuery) ||
+          number.contains(searchQuery);
     }).toList();
 
     return Column(
@@ -644,26 +670,35 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
               ),
               filled: true,
               fillColor: AppColors.darkSecondarySurface,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 0,
+                horizontal: 20,
+              ),
             ),
             onChanged: (_) => setState(() {}),
           ),
         ),
-        
+
         // Contacts list
         Expanded(
           child: ListView(
             children: [
               if (filteredSupabaseUsers.isNotEmpty) ...[
                 _buildSectionHeader('Trusted App Users'),
-                ...filteredSupabaseUsers.map((user) => _buildSupabaseUserTile(user)).toList(),
+                ...filteredSupabaseUsers
+                    .map((user) => _buildSupabaseUserTile(user))
+                    .toList(),
                 const SizedBox(height: 8),
               ],
               if (filteredDeviceContacts.isNotEmpty) ...[
                 _buildSectionHeader('Device Contacts'),
-                ...filteredDeviceContacts.map((contact) => _buildContactCard(contact)).toList(),
+                ...filteredDeviceContacts
+                    .map((contact) => _buildContactCard(contact))
+                    .toList(),
               ],
-              if (filteredSupabaseUsers.isEmpty && filteredDeviceContacts.isEmpty && !_isLoading) ...[
+              if (filteredSupabaseUsers.isEmpty &&
+                  filteredDeviceContacts.isEmpty &&
+                  !_isLoading) ...[
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -676,7 +711,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
               ],
             ],
           ),
-        )
+        ),
       ],
     );
   }
@@ -688,7 +723,11 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.contact_phone, size: 64, color: AppColors.darkMutedText),
+            const Icon(
+              Icons.contact_phone,
+              size: 64,
+              color: AppColors.darkMutedText,
+            ),
             const SizedBox(height: 24),
             Text(
               'Contacts Permission Required',
@@ -717,7 +756,10 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
                   child: const Text('Grant Permission'),
                 ),
@@ -725,7 +767,10 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                 TextButton(
                   onPressed: () => openAppSettings(),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
                   child: const Text('Open Settings'),
                 ),
