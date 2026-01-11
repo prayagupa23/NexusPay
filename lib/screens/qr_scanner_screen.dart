@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 
 class QrScannerScreen extends StatefulWidget {
@@ -43,14 +46,274 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     _processScannedData(barcode.rawValue!);
   }
 
-  void _processScannedData(String data) {
+  Future<void> _processScannedData(String data) async {
     // Check if it's a UPI payment QR code
     if (data.startsWith('upi://pay?')) {
       _handleUpiPayment(data);
-    } else {
-      // Handle other QR code types or show error
-      _showError('Invalid QR code. Please scan a UPI payment QR code.');
+    } 
+    // Check if it's a URL
+    else if (Uri.tryParse(data)?.hasAbsolutePath ?? false) {
+      await _handleUrl(data);
+      return;
     }
+    // Handle any other text content
+    else {
+      _handleTextContent(data);
+    }
+  }
+
+  Future<void> _showUrlScanDialog({
+    required String url,
+    required String verdict,
+    required String riskScore,
+    required String reasons,
+  }) async {
+    final bool isSafe = verdict.toLowerCase() == 'safe';
+    final Color statusColor = isSafe ? Colors.green : Colors.orange;
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.darkSurface,
+          title: Row(
+            children: [
+              Icon(
+                isSafe ? Icons.check_circle : Icons.warning_amber_rounded,
+                color: statusColor,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'URL Scan Results',
+                style: TextStyle(
+                  color: AppColors.primaryText(context),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  url,
+                  style: TextStyle(
+                    color: AppColors.secondaryText(context),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: statusColor),
+                      ),
+                      child: Text(
+                        verdict.toUpperCase(),
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Risk: $riskScore',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Analysis:',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '• $reasons',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pop(); // Close scanner
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white70,
+              ),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Close both dialog and scanner screen first
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pop(); // Close scanner
+                
+                // Then open the URL
+                try {
+                  // Ensure URL has a scheme
+                  String urlToLaunch = url;
+                  if (!urlToLaunch.startsWith('http://') && !urlToLaunch.startsWith('https://')) {
+                    urlToLaunch = 'https://$urlToLaunch';
+                  }
+                  
+                  final uri = Uri.parse(urlToLaunch);
+                  
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(
+                      uri,
+                      mode: LaunchMode.externalApplication,
+                    );
+                    print('Successfully launched URL: $urlToLaunch');
+                  } else {
+                    print('Could not launch URL: $urlToLaunch');
+                    // Fallback to web view if external app fails
+                    await launchUrl(
+                      uri,
+                      mode: LaunchMode.inAppWebView,
+                    );
+                  }
+                } catch (e) {
+                  print('Error launching URL: $e');
+                  // Show error to user
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Could not open URL: $url'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('PROCEED'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _handleUrl(String url) async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      // Make an API call to the provided URL scanning service
+      final response = await http.post(
+        Uri.parse('https://qr-url-detector-mc17.onrender.com/scan'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'url': url}),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        final verdict = responseData['verdict']?.toString() ?? 'Unknown';
+        final riskScore = responseData['risk_score']?.toString() ?? 'N/A';
+        final reasons = responseData['reasons'] is List 
+            ? (responseData['reasons'] as List).map((e) => e.toString()).join('\n• ')
+            : 'No additional information';
+        
+        if (mounted) {
+          await _showUrlScanDialog(
+            url: url,
+            verdict: verdict,
+            riskScore: riskScore,
+            reasons: reasons,
+          );
+        }
+      } else {
+        if (!mounted) return;
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.darkSurface,
+            title: const Text(
+              'Scan Failed',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Text(
+              'Failed to scan URL. Status: ${response.statusCode}\n${response.body}',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppColors.darkSurface,
+          title: const Text(
+            'Error',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Text(
+            'Error scanning URL: $e',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+        _controller.start();
+      }
+    }
+  }
+
+  void _handleTextContent(String text) {
+    // Return any other text content
+    Navigator.pop(context, {
+      'type': 'text',
+      'content': text,
+    });
   }
 
   void _handleUpiPayment(String upiPayload) {
