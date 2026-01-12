@@ -19,6 +19,7 @@ import '../tile/avatar_tile.dart';
 import 'chat_screen.dart';
 import 'money_screen.dart';
 import 'heatmap_screen.dart';
+import 'detect_fraud_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../models/recipient_honor_score_model.dart';
 import '../services/recipient_honor_score_db.dart';
@@ -317,7 +318,17 @@ class _QuickActionsRow extends StatelessWidget {
               );
             },
           ),
-          _actionItem(context, "Detect Fraud", Icons.fact_check_rounded),
+          _actionItem(
+            context,
+            "Detect Fraud",
+            Icons.fact_check_rounded,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DetectFraudScreen()),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -918,15 +929,17 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
       debugPrint('Loading user profiles for contacts...');
       final prefs = await SharedPreferences.getInstance();
       _currentUserUpi = prefs.getString('current_user_upi');
-      
+
       debugPrint('Current user UPI: $_currentUserUpi');
-      
+
       if (_currentUserUpi == null) {
         debugPrint('No current user UPI found, trying to fetch from DB...');
         // Try to get current user's UPI from the profile
         final currentPhone = prefs.getString('logged_in_phone');
         if (currentPhone != null) {
-          final profile = await _supabaseService.getUserProfileByPhone(currentPhone);
+          final profile = await _supabaseService.getUserProfileByPhone(
+            currentPhone,
+          );
           if (profile != null) {
             _currentUserUpi = profile.upiId;
             await prefs.setString('current_user_upi', _currentUserUpi!);
@@ -942,19 +955,26 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
 
       if (response != null) {
         debugPrint('Fetched ${response.length} user profiles');
-        
+
         // Filter out current user and convert to List<Map>
         final contacts = (response as List)
-            .where((user) => user['upi_id'] != null && 
-                           user['full_name'] != null &&
-                           user['upi_id'] != _currentUserUpi)
-            .map((user) => {
-                  'upi_id': user['upi_id'] as String,
-                  'full_name': user['full_name'] as String,
-                })
+            .where(
+              (user) =>
+                  user['upi_id'] != null &&
+                  user['full_name'] != null &&
+                  user['upi_id'] != _currentUserUpi,
+            )
+            .map(
+              (user) => {
+                'upi_id': user['upi_id'] as String,
+                'full_name': user['full_name'] as String,
+              },
+            )
             .toList();
-            
-        debugPrint('Filtered to ${contacts.length} contacts (excluding current user)');
+
+        debugPrint(
+          'Filtered to ${contacts.length} contacts (excluding current user)',
+        );
 
         if (mounted) {
           setState(() {
@@ -1019,35 +1039,37 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ..._contacts.map(
-                      (user) => Padding(
-                        padding: const EdgeInsets.only(right: 24),
-                        child: ContactAvatar(
-                          name: user['full_name'],
-                          onTap: () {
-                            if (_currentUserUpi == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("User profile not loaded"),
-                                ),
-                              );
-                              return;
-                            }
+                    ..._contacts
+                        .map(
+                          (user) => Padding(
+                            padding: const EdgeInsets.only(right: 24),
+                            child: ContactAvatar(
+                              name: user['full_name'],
+                              onTap: () {
+                                if (_currentUserUpi == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("User profile not loaded"),
+                                    ),
+                                  );
+                                  return;
+                                }
 
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ContactDetailScreen(
-                                  name: user['full_name'],
-                                  upiId: user['upi_id'],
-                                  currentUserUpi: _currentUserUpi!,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ).toList(),
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ContactDetailScreen(
+                                      name: user['full_name'],
+                                      upiId: user['upi_id'],
+                                      currentUserUpi: _currentUserUpi!,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        )
+                        .toList(),
                     _buildAddButton(),
                   ],
                 ),
