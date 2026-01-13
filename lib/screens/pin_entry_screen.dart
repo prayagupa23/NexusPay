@@ -45,81 +45,144 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
   }
 
   Future<void> _processPayment() async {
-    // Honor score restriction logic
     final db = RecipientHonorScoreDB();
     final prefs = await SharedPreferences.getInstance();
     final phoneNumber = prefs.getString('logged_in_phone');
     if (phoneNumber == null) {
       setState(() {
-        _errorMessage = 'Session Expired';
+        _errorMessage = 'User session expired. Please log in again.';
+        _isProcessing = false;
       });
       return;
     }
 
-    // Use UPI ID or phone as recipient key
-    final honorScore = await db.getHonorScore(phoneNumber, widget.recipientUpiId) ?? await db.getHonorScore(phoneNumber, widget.recipientName);
-    int score = honorScore?.honorScore ?? 50;
-    final restriction = db.getRestrictionForScore(score);
-    if (restriction['level'] == 'block') {
+    final user = await _supabaseService.getUserByPhone(phoneNumber);
+    if (user == null || user.userId == null) {
       setState(() {
-        _errorMessage = restriction['message'];
+        _errorMessage = 'User not found. Please log in again.';
+        _isProcessing = false;
       });
-      HapticFeedback.vibrate();
       return;
-    } else if (restriction['level'] != 'none') {
-      setState(() {
-        _errorMessage = restriction['message'];
-      });
-      // Allow to proceed after warning (or you could require explicit confirmation)
     }
 
-    if (_pin.length != 4) return;
+    final recipientScore = await db.getHonorScore(user.userId!.toString(), widget.recipientUpiId);
+    if (recipientScore != null && recipientScore.honorScore < 50) {
+      final shouldProceed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Low Honor Score Warning'),
+          content: const Text(
+              'The recipient has a low honor score. Proceed with caution.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('CANCEL'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('PROCEED'),
+            ),
+          ],
+        ),
+      );
 
-    HapticFeedback.mediumImpact();
+      if (shouldProceed != true) {
+        setState(() {
+          _isProcessing = false;
+        });
+        return;
+      }
+    }
+
     setState(() {
       _isProcessing = true;
       _errorMessage = null;
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final phoneNumber = prefs.getString('logged_in_phone');
-      if (phoneNumber == null) throw 'Session Expired';
-
-      final user = await _supabaseService.getUserByPhone(phoneNumber);
-      if (user?.pin != _pin) {
-        throw 'Invalid UPI PIN';
+      final amount = double.tryParse(
+        widget.amount.replaceAll(RegExp(r'[^0-9.]'), ''),
+      );
+      
+      if (amount == null) {
+        throw Exception('Invalid amount format');
       }
 
-      // ✅ STEP 5.1 — FINALIZE TRANSACTION
-      await Supabase.instance.client
-          .from('transactions')
-          .update({'status': 'SUCCESS'})
-          .eq('id', widget.transactionId);
+      final senderProfile = await _supabaseService.getUserProfile(user.userId!);
+      if (senderProfile == null) {
+        throw Exception('Sender profile not found');
+      }
+      
+      final recipientUser = await _supabaseService.getUserByUpiId(widget.recipientUpiId);
+      if (recipientUser == null || recipientUser.userId == null) {
+        throw Exception('Recipient not found');
+      }
+      
+      final recipientProfile = await _supabaseService.getUserProfile(recipientUser.userId!);
+      if (recipientProfile == null) {
+        throw Exception('Recipient profile not found');
+      }
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentSuccessScreen(
-              amount: widget.amount,
-              recipient: widget.recipientName,
-              transactionId: widget.transactionId,
-              timestamp: DateTime.now(),
+      final senderNewBalance = (senderProfile.bankBalance ?? 0.0) - amount;
+      final recipientNewBalance = (recipientProfile.bankBalance ?? 0.0) + amount;
+
+      try {
+        // Use Supabase's transaction API
+        await Supabase.instance.client.rpc('rpc_begin_transaction');
+        
+        await _supabaseService.updateBankBalance(int.parse(user.userId!.toString()), senderNewBalance);
+        
+        await _supabaseService.updateBankBalance(int.parse(recipientUser.userId!.toString()), recipientNewBalance);
+        
+        await Supabase.instance.client
+            .from('transactions')
+            .update({'status': 'SUCCESS', 'amount': amount})
+            .eq('id', widget.transactionId);
+            
+        await Supabase.instance.client.rpc('rpc_commit_transaction');
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PaymentSuccessScreen(
+                amount: widget.amount,
+                recipient: widget.recipientName,
+                transactionId: widget.transactionId,
+                timestamp: DateTime.now(),
+              ),
             ),
-          ),
-        );
+          );
+        }
+      } catch (e) {
+        try {
+          await Supabase.instance.client.rpc('rpc_rollback_transaction');
+        } catch (rollbackError) {
+          debugPrint('Error during rollback: $rollbackError');
+        }
+        debugPrint('Error processing payment: $e');
+        setState(() {
+          _errorMessage = 'Payment failed: ${e.toString()}';
+          _isProcessing = false;
+        });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = 'Payment failed: ${e.toString()}';
         _isProcessing = false;
-        _pin = '';
       });
-      HapticFeedback.vibrate();
+      
+      try {
+        await Supabase.instance.client
+          .from('transactions')
+          .update({'status': 'CANCELLED'})
+          .eq('id', widget.transactionId);
+      } catch (updateError) {
+        debugPrint('Failed to update transaction status to CANCELLED: $updateError');
+      }
     }
+    _pin = '';
   }
-
 
   void _onKeyPress(String value) {
     if (_isProcessing) return;

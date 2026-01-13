@@ -85,7 +85,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
               ),
               const SizedBox(width: 10),
               Text(
-                'URL Scan Results',
+                'URL Results',
                 style: TextStyle(
                   color: AppColors.primaryText(context),
                   fontWeight: FontWeight.bold,
