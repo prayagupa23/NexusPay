@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import 'home_screen.dart';
 import '../services/user_registration_state.dart';
 import '../services/supabase_service.dart';
+import '../services/phone_validation_service.dart';
 import '../utils/supabase_config.dart';
 import '../models/user_model.dart';
 import '../models/user_profile_model.dart';
@@ -329,16 +330,38 @@ class _SetUpSecurityScreenState extends State<SetUpSecurityScreen> {
       final userModel = _registrationState.toUserModel();
       if (userModel == null) throw "Internal state error.";
 
+      // Calculate honor score based on phone number validation
+      int honorScore = 100; // Default score
+      
+      try {
+        // If we have phone validation data, use it to calculate the score
+        if (_registrationState.honorScoreData != null) {
+          final phoneService = PhoneValidationService();
+          final phoneNumber = _registrationState.honorScoreData!['phone_number'] as String?;
+          
+          if (phoneNumber != null) {
+            final validationData = await phoneService.validatePhoneNumber(phoneNumber);
+            if (validationData != null) {
+              honorScore = phoneService.calculateHonorScore(validationData);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error calculating honor score: $e');
+        // Continue with default score if there's an error
+      }
+
       final createdUser = await _supabaseService.createUser(userModel);
 
       if (createdUser.userId != null) {
+        // Create user profile with calculated honor score
         await _supabaseService.createUserProfile(UserProfileModel(
           userId: createdUser.userId!,
           upiId: createdUser.upiId,
           fullName: createdUser.fullName,
           city: createdUser.city,
           bankName: createdUser.bankName,
-          honorScore: 100,
+          honorScore: honorScore,
           bankBalance: 10000.0,
         ));
       }

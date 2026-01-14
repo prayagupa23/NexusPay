@@ -26,6 +26,9 @@ class UserRegistrationState {
   // Step 5: Security
   String? pin;
   String? city;
+  
+  // Honor Score Data
+  Map<String, dynamic>? honorScoreData;
 
   // Check if all required fields are filled
   bool get isComplete {
@@ -71,6 +74,7 @@ class UserRegistrationState {
     dateOfBirth = null;
     pin = null;
     city = null;
+    honorScoreData = null;
   }
 
   // Get progress percentage

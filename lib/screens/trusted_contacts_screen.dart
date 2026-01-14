@@ -55,40 +55,72 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
 
   Future<void> _loadSupabaseUsers() async {
     try {
-      debugPrint('=== START: Loading Supabase Users ===');
-      final users = await _supabaseService.getAllUsers();
+      debugPrint('=== START: Loading Trusted Users (3+ transactions) ===');
+      
+      // Get current user ID and UPI
+      final prefs = await SharedPreferences.getInstance();
+      final currentPhone = prefs.getString('logged_in_phone');
+      
+      if (currentPhone == null) {
+        debugPrint('No logged in user found');
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      // Get current user's profile to get user_id
+      final currentUser = await _supabaseService.getUserByPhone(currentPhone);
+      if (currentUser == null || currentUser.userId == null) {
+        debugPrint('Failed to get current user profile');
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      _userId = currentUser.userId!.toString();
+      
+      // Get trusted contacts (users with 3+ transactions)
+      debugPrint('Fetching trusted contacts for user ID: $_userId');
+      final trustedContacts = await _supabaseService.getTrustedContacts(int.parse(_userId!));
+      
+      debugPrint('Found ${trustedContacts.length} trusted contacts');
+      
+      // Convert TrustedContact list to UserModel list
+      final trustedUsers = <UserModel>[];
+      
+      for (var contact in trustedContacts) {
+        try {
+          if (contact.upiId != null && contact.upiId!.isNotEmpty) {
+            // Get user by UPI ID
+            final user = await _supabaseService.getUserByUpiId(contact.upiId!);
+            if (user != null) {
+              trustedUsers.add(user);
+              debugPrint('Added trusted user: ${user.fullName} (${user.upiId}) - ${contact.transactionCount} transactions');
+            } else {
+              debugPrint('No user found for UPI: ${contact.upiId}');
+            }
+          } else {
+            debugPrint('Skipping contact with empty UPI ID');
+          }
+        } catch (e) {
+          debugPrint('Error loading user with UPI ${contact.upiId}: $e');
+        }
+      }
       
       if (mounted) {
-        final prefs = await SharedPreferences.getInstance();
-        final currentUserUpi = prefs.getString('current_user_upi') ?? '';
-        
-        debugPrint('Current User UPI from SharedPreferences: $currentUserUpi');
-        debugPrint('Current User ID from Session: $_userId');
-        debugPrint('Total users from Supabase: ${users.length}');
-        
         setState(() {
-          _supabaseUsers = [];
-          for (var user in users) {
-            final isCurrentUser = user.userId == _userId || 
-                               (user.upiId != null && user.upiId!.toLowerCase() == currentUserUpi.toLowerCase());
-            
-            debugPrint('User: ${user.fullName} | UPI: ${user.upiId} | Is Current: $isCurrentUser');
-            
-            if (!isCurrentUser) {
-              _supabaseUsers.add(user);
-            } else {
-              debugPrint('Filtered out current user: ${user.fullName} (${user.upiId})');
-            }
-          }
-          
-          debugPrint('Final filtered users count: ${_supabaseUsers.length}');
+          _supabaseUsers = trustedUsers;
+          _isLoading = false;
         });
+        debugPrint('Final trusted users count: ${_supabaseUsers.length}');
       }
-      debugPrint('=== END: Loading Supabase Users ===');
+      
+      debugPrint('=== END: Loading Trusted Users ===');
     } catch (e) {
-      debugPrint('Error loading Supabase users: $e');
+      debugPrint('Error loading trusted users: $e');
       if (e is Error) {
         debugPrint('Stack trace: ${e.stackTrace}');
+      }
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }

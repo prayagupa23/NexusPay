@@ -8,6 +8,7 @@ import '../models/user_model.dart';
 import '../models/user_profile_model.dart';
 import '../models/transaction_model.dart';
 import '../models/user_transaction_context_model.dart';
+import '../models/trusted_contact_model.dart';
 import 'phone_verification_service.dart';
 
 class SupabaseService {
@@ -182,6 +183,22 @@ class SupabaseService {
     }
   }
 
+  // Get user by ID
+  Future<UserModel?> getUserById(int userId) async {
+    try {
+      final response = await _client
+          .from('upi_user')
+          .select()
+          .eq('id', userId)
+          .maybeSingle();
+          
+      return response != null ? UserModel.fromMap(response) : null;
+    } catch (e) {
+      debugPrint('Error fetching user by ID $userId: $e');
+      return null;
+    }
+  }
+
   // Get user profile by UPI ID (for displaying honor scores)
   Future<UserProfileModel?> getUserProfileByUpiId(String upiId) async {
     try {
@@ -243,6 +260,8 @@ class SupabaseService {
         throw 'Honor score must be between 0 and 100';
       }
 
+      debugPrint('Updating honor score for user $userId to $newScore');
+      
       final response = await _client
           .from('user_profile')
           .update({
@@ -252,6 +271,13 @@ class SupabaseService {
           .eq('user_id', userId)
           .select()
           .single();
+          
+      if (response == null) {
+        throw 'Failed to update honor score: User profile not found';
+      }
+      
+      debugPrint('Successfully updated honor score for user $userId to $newScore');
+      return UserProfileModel.fromMap(response);
 
       return UserProfileModel.fromMap(response);
     } on PostgrestException catch (e) {
@@ -278,6 +304,166 @@ class SupabaseService {
       return UserProfileModel.fromMap(response);
     } on PostgrestException catch (e) {
       throw _handleError(e);
+    }
+  }
+
+  // Get trusted contacts (users with 3+ transactions)
+  Future<List<TrustedContact>> getTrustedContacts(int userId) async {
+    try {
+      debugPrint('Fetching trusted contacts for user ID: $userId');
+      
+      // Try to use the database function first
+      debugPrint('Calling get_trusted_contacts with user ID: $userId');
+      try {
+        final response = await _client.rpc('get_trusted_contacts', 
+          params: {'p_user_id': userId});
+        
+        if (response is List) {
+          return response.map<TrustedContact>((contact) => 
+            TrustedContact.fromMap(Map<String, dynamic>.from(contact))).toList();
+        }
+      } on PostgrestException catch (e) {
+        debugPrint('Error calling get_trusted_contacts function: $e');
+        // Fall through to direct query
+      }
+      
+      // Fallback: Direct query to find trusted contacts
+      debugPrint('Falling back to direct query for trusted contacts');
+      
+      try {
+        // Get all completed transactions for this user with receiver_upi
+        final response = await _client
+            .from('transactions')
+            .select('*, receiver_upi')
+            .eq('user_id', userId)
+            .eq('status', 'SUCCESS');
+        
+        if (response is! List) {
+          debugPrint('Unexpected response format from transactions query');
+          return [];
+        }
+        
+        debugPrint('Found ${response.length} completed transactions');
+        
+        // Process the response to count transactions per receiver and get last transaction date
+        final Map<String, Map<String, dynamic>> receiverData = {};
+        
+        debugPrint('Processing ${response.length} transactions...');
+        for (final tx in response) {
+          try {
+            final receiverUpi = tx['receiver_upi'] as String?;
+            if (receiverUpi == null || receiverUpi.isEmpty) {
+              debugPrint('Skipping transaction - missing receiver_upi');
+              continue;
+            }
+            
+            debugPrint('Processing transaction - UPI: $receiverUpi');
+            
+            // Initialize receiver data if not exists
+            if (!receiverData.containsKey(receiverUpi)) {
+              receiverData[receiverUpi] = {
+                'count': 0,
+                'lastDate': DateTime(1970),
+                'upiId': receiverUpi,
+              };
+              debugPrint('New receiver initialized - UPI: $receiverUpi');
+            }
+            
+            // Update last transaction date if this one is newer
+            final txDate = DateTime.parse(tx['created_at'] as String).toLocal();
+            if (txDate.isAfter(receiverData[receiverUpi]!['lastDate'])) {
+              receiverData[receiverUpi]!['lastDate'] = txDate;
+            }
+            
+            receiverData[receiverUpi]!['count']++;
+            debugPrint('Transaction processed - UPI: $receiverUpi, New Count: ${receiverData[receiverUpi]!['count']}');
+          } catch (e) {
+            debugPrint('Error processing transaction: $e');
+          }
+        }
+        
+        // Filter receivers with 3+ transactions
+        final trustedReceivers = receiverData.entries
+            .where((entry) => entry.value['count'] >= 3)
+            .toList();
+        
+        if (trustedReceivers.isEmpty) {
+          debugPrint('No trusted contacts found (need 3+ transactions)');
+          return [];
+        }
+        
+        debugPrint('Found ${trustedReceivers.length} trusted contacts');
+        final trustedContacts = <TrustedContact>[];
+        
+        // Get profiles for trusted receivers
+        debugPrint('Processing ${trustedReceivers.length} trusted receivers...');
+        for (final entry in trustedReceivers) {
+          try {
+            final upiId = entry.key;
+            final count = entry.value['count'] as int;
+            final lastTransactionDate = entry.value['lastDate'] as DateTime;
+            
+            debugPrint('Processing trusted contact - UPI: $upiId, Transaction Count: $count');
+            
+            // Get user profile for this contact by UPI ID
+            debugPrint('Fetching profile for UPI: $upiId');
+            try {
+              // First try to get user ID from upi_user table
+              final upiUserResponse = await _client
+                  .from('upi_user')
+                  .select('user_id')
+                  .eq('upi_id', upiId)
+                  .single();
+                  
+              if (upiUserResponse == null) {
+                debugPrint('No user found with UPI: $upiId');
+                continue;
+              }
+              
+              final receiverId = upiUserResponse['user_id'] as int?;
+              if (receiverId == null) {
+                debugPrint('No user ID found for UPI: $upiId');
+                continue;
+              }
+              
+              debugPrint('Found user ID $receiverId for UPI: $upiId');
+              try {
+                final profile = await getUserProfile(receiverId);
+                if (profile != null) {
+                  debugPrint('Profile found - ID: ${profile.userId}, Name: ${profile.fullName}');
+                  trustedContacts.add(TrustedContact(
+                    userId: receiverId,
+                    upiId: upiId,
+                    fullName: profile.fullName ?? 'Unknown',
+                    transactionCount: count,
+                    lastTransactionDate: lastTransactionDate,
+                  ));
+                  debugPrint('Added to trusted contacts - UPI: $upiId, Name: ${profile.fullName}');
+                } else {
+                  debugPrint('No profile found for receiver ID: $receiverId');
+                }
+              } catch (e) {
+                debugPrint('Error fetching profile for ID $receiverId: $e');
+              }
+            } catch (e) {
+              debugPrint('Error processing UPI user lookup for $upiId: $e');
+            }
+          } catch (e) {
+            debugPrint('Error processing trusted contact: $e');
+          }
+        }
+        
+        debugPrint('Successfully loaded ${trustedContacts.length} trusted contacts');
+        return trustedContacts;
+        
+      } catch (e) {
+        debugPrint('Error in direct query for trusted contacts: $e');
+        return [];
+      }
+      
+    } catch (e) {
+      debugPrint('Unexpected error in getTrustedContacts: $e');
+      return [];
     }
   }
 
@@ -650,7 +836,21 @@ class SupabaseService {
 
   Future<void> syncRecipientHonorScores(String userId, List<Map<String, dynamic>> contacts) async {
     try {
-      // First, get existing scores from Supabase to minimize updates
+      // First, get all user profiles to map phone numbers to user IDs
+      final userProfiles = await _client
+          .from('user_profile')
+          .select('user_id, phone');
+
+      // Create a map of phone numbers to user IDs
+      final phoneToUserId = <String, String>{};
+      for (final profile in userProfiles) {
+        final phone = profile['phone'] as String?;
+        if (phone != null) {
+          phoneToUserId[phone] = profile['user_id'].toString();
+        }
+      }
+
+      // Get existing scores from Supabase to minimize updates
       final existingScores = await _client
           .from('recipient_honor_scores')
           .select('number_id, honor_score')
@@ -665,8 +865,13 @@ class SupabaseService {
       final batch = <Map<String, dynamic>>[];
       
       for (final contact in contacts) {
-        final numberId = contact['number_id'] as String?;
+        String? numberId = contact['number_id'] as String?;
         if (numberId == null || numberId.isEmpty) continue;
+
+        // Check if numberId is a phone number and map it to user ID if possible
+        if (RegExp(r'^[0-9]{10}$').hasMatch(numberId)) {
+          numberId = phoneToUserId[numberId] ?? numberId;
+        }
 
         final existingScore = existingScoresMap[numberId];
         final honorScore = contact['honor_score'] as int? ?? 100;

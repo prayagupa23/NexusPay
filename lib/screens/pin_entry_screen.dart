@@ -113,16 +113,19 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
         throw Exception('Sender profile not found');
       }
       
+      // Get recipient user from UPI ID
       final recipientUser = await _supabaseService.getUserByUpiId(widget.recipientUpiId);
       if (recipientUser == null || recipientUser.userId == null) {
         throw Exception('Recipient not found');
       }
-      
+
+      // Get recipient's profile to check balance
       final recipientProfile = await _supabaseService.getUserProfile(recipientUser.userId!);
       if (recipientProfile == null) {
         throw Exception('Recipient profile not found');
       }
 
+      // Process payment with recipient validation
       final senderNewBalance = (senderProfile.bankBalance ?? 0.0) - amount;
       final recipientNewBalance = (recipientProfile.bankBalance ?? 0.0) + amount;
 
@@ -130,14 +133,62 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
         // Use Supabase's transaction API
         await Supabase.instance.client.rpc('rpc_begin_transaction');
         
+        // Update both sender and recipient balances
         await _supabaseService.updateBankBalance(int.parse(user.userId!.toString()), senderNewBalance);
+        await _supabaseService.updateBankBalance(recipientUser.userId!, recipientNewBalance);
         
-        await _supabaseService.updateBankBalance(int.parse(recipientUser.userId!.toString()), recipientNewBalance);
-        
+        // Update transaction status to success
         await Supabase.instance.client
             .from('transactions')
             .update({'status': 'SUCCESS', 'amount': amount})
             .eq('id', widget.transactionId);
+            
+        // Increase sender's honor score by 1 after successful transaction
+        try {
+          // Get the sender's user ID
+          final senderId = user.userId;
+          if (senderId == null) {
+            debugPrint('No sender ID found');
+            return;
+          }
+          
+          debugPrint('Fetching current honor score for sender (user ID: $senderId)');
+          
+          // Convert string user ID to integer for the database query
+          final senderIdInt = int.tryParse(senderId.toString());
+          if (senderIdInt == null) {
+            debugPrint('Invalid sender ID format: $senderId');
+            return;
+          }
+          
+          final response = await Supabase.instance.client
+              .from('user_profile')
+              .select('honor_score')
+              .eq('user_id', senderIdInt)
+              .maybeSingle();
+          
+          debugPrint('Database response: $response');
+          
+          if (response != null && response['honor_score'] != null) {
+            final currentHonorScore = response['honor_score'] as int;
+            final newHonorScore = (currentHonorScore + 1).clamp(0, 100);
+            
+            debugPrint('Current honor score from DB: $currentHonorScore');
+            debugPrint('Will update sender honor score to: $newHonorScore');
+            
+            // Update using a direct SQL query to ensure atomic update
+            await Supabase.instance.client.rpc('increment_honor_score', params: {
+              'user_id_param': senderIdInt,
+              'increment_by': 1
+            });
+            
+            debugPrint('Successfully updated sender honor score in database');
+          } else {
+            debugPrint('Could not find honor score for sender (user ID: $senderId)');
+          }
+        } catch (e) {
+          debugPrint('Error updating sender honor score: $e');
+        }
             
         await Supabase.instance.client.rpc('rpc_commit_transaction');
 

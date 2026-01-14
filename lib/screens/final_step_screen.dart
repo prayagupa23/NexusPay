@@ -317,10 +317,49 @@ class _FinalStepScreenState extends State<FinalStepScreen> {
     );
   }
 
-  void _onFinalSubmit() {
+  Future<void> _onFinalSubmit() async {
     HapticFeedback.heavyImpact();
     _saveDob();
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const SetUpSecurityScreen()));
+    
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+
+    try {
+      final phoneNumber = _registrationState.phoneNumber;
+      if (phoneNumber == null) {
+        throw Exception('Phone number is required');
+      }
+
+      // Store the phone number in registration state for later use
+      _registrationState.honorScoreData = {
+        'phone_number': phoneNumber,
+        'validation_time': DateTime.now().toIso8601String(),
+      };
+
+      // Proceed to security setup
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        Navigator.push(
+          context, 
+          MaterialPageRoute(builder: (_) => const SetUpSecurityScreen())
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   // Logic remains the same as provided, just ensuring it plugs into the new fields

@@ -24,6 +24,7 @@ import '../widgets/bottom_nav_bar.dart';
 import '../models/recipient_honor_score_model.dart';
 import '../services/recipient_honor_score_db.dart';
 import 'trusted_contacts_screen.dart';
+import '../models/trusted_contact_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -913,9 +914,10 @@ class TrustedContactsSection extends StatefulWidget {
 
 class _TrustedContactsSectionState extends State<TrustedContactsSection> {
   late final SupabaseService _supabaseService;
-  List<Map<String, dynamic>> _contacts = [];
+  List<TrustedContact> _trustedContacts = [];
   bool _isLoading = true;
   String? _currentUserUpi;
+  int? _currentUserId;
 
   @override
   void initState() {
@@ -926,65 +928,60 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
 
   Future<void> _loadData() async {
     try {
-      debugPrint('Loading user profiles for contacts...');
+      debugPrint('Loading trusted contacts...');
       final prefs = await SharedPreferences.getInstance();
       _currentUserUpi = prefs.getString('current_user_upi');
+      
+      // Get current user ID
+      final currentPhone = prefs.getString('logged_in_phone');
+      if (currentPhone == null) {
+        debugPrint('No logged in user found');
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
 
-      debugPrint('Current user UPI: $_currentUserUpi');
+      // Get current user's profile to get user_id
+      final currentUser = await _supabaseService.getUserByPhone(currentPhone);
+      if (currentUser == null || currentUser.userId == null) {
+        debugPrint('Failed to get current user profile');
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
 
+      if (currentUser.userId == null) {
+        debugPrint('No current user ID available');
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+      
+      _currentUserId = currentUser.userId!;
+      
+      // If we don't have UPI ID, try to get it from profile
       if (_currentUserUpi == null) {
-        debugPrint('No current user UPI found, trying to fetch from DB...');
-        // Try to get current user's UPI from the profile
-        final currentPhone = prefs.getString('logged_in_phone');
-        if (currentPhone != null) {
-          final profile = await _supabaseService.getUserProfileByPhone(
-            currentPhone,
-          );
-          if (profile != null) {
-            _currentUserUpi = profile.upiId;
-            await prefs.setString('current_user_upi', _currentUserUpi!);
-          }
+        final profile = await _supabaseService.getUserProfile(_currentUserId!);
+        if (profile != null) {
+          _currentUserUpi = profile.upiId;
+          await prefs.setString('current_user_upi', _currentUserUpi!);
         }
       }
 
-      // Fetch only required fields from user_profile table
-      final response = await _supabaseService.client
-          .from('user_profile')
-          .select('upi_id, full_name')
-          .order('full_name');
+      // Get trusted contacts (users with 3+ transactions)
+      debugPrint('Fetching trusted contacts for user ID: $_currentUserId');
+      final trustedContacts = await _supabaseService.getTrustedContacts(_currentUserId!);
+      
+      debugPrint('Found ${trustedContacts.length} trusted contacts');
+      for (var contact in trustedContacts) {
+        debugPrint('Trusted contact: ${contact.fullName} (${contact.upiId}) - ${contact.transactionCount} transactions');
+      }
 
-      if (response != null) {
-        debugPrint('Fetched ${response.length} user profiles');
-
-        // Filter out current user and convert to List<Map>
-        final contacts = (response as List)
-            .where(
-              (user) =>
-                  user['upi_id'] != null &&
-                  user['full_name'] != null &&
-                  user['upi_id'] != _currentUserUpi,
-            )
-            .map(
-              (user) => {
-                'upi_id': user['upi_id'] as String,
-                'full_name': user['full_name'] as String,
-              },
-            )
-            .toList();
-
-        debugPrint(
-          'Filtered to ${contacts.length} contacts (excluding current user)',
-        );
-
-        if (mounted) {
-          setState(() {
-            _contacts = contacts;
-            _isLoading = false;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _trustedContacts = trustedContacts;
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      debugPrint('Error loading user profiles: $e');
+      debugPrint('Error loading trusted contacts: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -1032,48 +1029,65 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
         const SizedBox(height: 20),
         _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ..._contacts
-                        .map(
-                          (user) => Padding(
-                            padding: const EdgeInsets.only(right: 24),
-                            child: ContactAvatar(
-                              name: user['full_name'],
-                              onTap: () {
-                                if (_currentUserUpi == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text("User profile not loaded"),
-                                    ),
-                                  );
-                                  return;
-                                }
+            : _trustedContacts.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20.0),
+                    child: Center(
+                      child: Text(
+                        'Your trusted contacts will appear here after 3+ transactions',
+                        style: TextStyle(color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ..._trustedContacts
+                            .map(
+                              (contact) => Padding(
+                                padding: const EdgeInsets.only(right: 20),
+                                child: Column(
+                                  children: [
+                                    ContactAvatar(
+                                      name: contact.fullName ?? 'Unknown',
+                                      onTap: () {
+                                        if (_currentUserUpi == null || contact.upiId == null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text("User profile not loaded"),
+                                            ),
+                                          );
+                                          return;
+                                        }
 
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ContactDetailScreen(
-                                      name: user['full_name'],
-                                      upiId: user['upi_id'],
-                                      currentUserUpi: _currentUserUpi!,
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => ContactDetailScreen(
+                                              name: contact.fullName ?? 'Unknown',
+                                              upiId: contact.upiId!,
+                                              currentUserUpi: _currentUserUpi!,
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    _buildAddButton(),
-                  ],
-                ),
-              ),
+                                    const SizedBox(height: 4),
+                                    // Transaction count text removed as per request
+                                  ],
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        _buildAddButton(),
+                      ],
+                    ),
+                  ),
       ],
     );
   }
