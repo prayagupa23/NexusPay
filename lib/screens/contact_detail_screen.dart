@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:heisenbug/screens/pay_anyone_screen.dart';
 import 'package:heisenbug/screens/payment_screen.dart';
 import 'dart:ui';
 import 'package:intl/intl.dart';
@@ -25,7 +24,6 @@ class ContactDetailScreen extends StatefulWidget {
 }
 
 class _ContactDetailScreenState extends State<ContactDetailScreen> {
-  // We use a Future to fetch data once, or you can trigger refresh after a payment
   late Future<List<TransactionModel>> _transactionFuture;
 
   @override
@@ -50,6 +48,104 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     }
   }
 
+  // --- REPORTING LOGIC ---
+
+  void _showReportBottomSheet(BuildContext context) {
+    final List<String> reasons = [
+      "Fraudulent Activity",
+      "Spam or Harassment",
+      "Fake Profile/Impersonation",
+      "Unauthorized Transaction",
+      "Suspicious Links",
+      "Abusive Language",
+      "Other"
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Report User",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryText(context),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Select a reason for reporting ${widget.name}. Your report is confidential.",
+                style: TextStyle(fontSize: 13, color: AppColors.secondaryText(context)),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: reasons.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        reasons[index],
+                        style: TextStyle(color: AppColors.primaryText(context), fontSize: 15),
+                      ),
+                      trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.mutedText(context)),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _submitReport(reasons[index]);
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _submitReport(String reason) async {
+    try {
+      // Maps to your user_reports table: reporter_name, reporter_upi, reported_name, reported_upi, reason
+      await Supabase.instance.client.from('user_reports').insert({
+        'reporter_name': 'Current User', // You can replace this with a real name if available
+        'reporter_upi': widget.currentUserUpi,
+        'reported_name': widget.name,
+        'reported_upi': widget.upiId,
+        'reason': reason,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Report submitted successfully"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to submit report: $e"), backgroundColor: Colors.redAccent),
+        );
+      }
+    }
+  }
+
+  // --- UI BUILDERS ---
+
   @override
   Widget build(BuildContext context) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
@@ -60,7 +156,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       backgroundColor: AppColors.bg(context),
       body: Stack(
         children: [
-          // Background Glow
           Positioned(
             top: -100,
             right: -100,
@@ -75,7 +170,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               ),
             ),
           ),
-
           Column(
             children: [
               _buildHeader(context, statusBarHeight, avatarBg, avatarText),
@@ -86,7 +180,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
-
                     final allTx = snapshot.data ?? [];
                     if (allTx.isEmpty) return _buildEmptyState();
 
@@ -96,7 +189,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       itemCount: allTx.length,
                       itemBuilder: (context, index) {
                         final tx = allTx[index];
-                        // Logic to check if I am the sender
                         final bool isSentByMe = tx.receiverUpi == widget.upiId;
                         return _buildTransactionBubble(context, tx, isSentByMe);
                       },
@@ -122,7 +214,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         width: MediaQuery.of(context).size.width * 0.72,
         decoration: BoxDecoration(
-          // DARK MODE: Rich Charcoal with subtle gradient | LIGHT MODE: Pure White
           color: Theme.of(context).brightness == Brightness.dark
               ? const Color(0xFF1E1E1E)
               : Colors.white,
@@ -148,7 +239,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           borderRadius: BorderRadius.circular(28),
           child: Stack(
             children: [
-              // 1. Creative Background Accent (Abstract Shape)
               Positioned(
                 right: -20,
                 top: -20,
@@ -157,13 +247,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                   backgroundColor: (isSuccess ? themeBlue : Colors.orange).withOpacity(0.03),
                 ),
               ),
-
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 2. Header Row: Status Label & Icon
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -193,8 +281,6 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-
-                    // 3. Amount Section (Formal Large Typography)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -214,7 +300,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                           tx.amount.toStringAsFixed(0),
                           style: TextStyle(
                             fontSize: 36,
-                            fontWeight: FontWeight.w900, // Ultra bold for formal look
+                            fontWeight: FontWeight.w900,
                             color: AppColors.primaryText(context),
                             letterSpacing: -1,
                           ),
@@ -230,12 +316,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-
                     const SizedBox(height: 20),
                     const Divider(height: 1, thickness: 0.5),
                     const SizedBox(height: 14),
-
-                    // 4. Footer: Transaction Meta
                     Row(
                       children: [
                         Container(
@@ -296,7 +379,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
 
   Widget _buildHeroAvatar(Color bg, Color text) {
     return Container(
-      width: 44, height: 44,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(colors: [bg, bg.withOpacity(0.8)]),
@@ -313,8 +397,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(widget.name, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryText(context))),
-        Text(widget.upiId, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondaryText(context).withOpacity(0.7))),
+        Text(widget.name,
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryText(context))),
+        Text(widget.upiId,
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondaryText(context).withOpacity(0.7))),
       ],
     );
   }
@@ -323,7 +410,30 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     return Row(
       children: [
         Icon(Icons.verified_user_rounded, color: Colors.blue.shade400, size: 18),
-        IconButton(icon: Icon(Icons.more_vert_rounded, color: AppColors.primaryText(context)), onPressed: () {}),
+        PopupMenuButton<String>(
+          icon: Icon(Icons.more_vert_rounded, color: AppColors.primaryText(context)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          color: AppColors.surface(context),
+          onSelected: (value) {
+            if (value == 'report') {
+              _showReportBottomSheet(context);
+            } else if (value == 'block') {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Block feature coming soon")),
+              );
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'report',
+              child: Text("Report User", style: TextStyle(color: AppColors.primaryText(context))),
+            ),
+            const PopupMenuItem(
+              value: 'block',
+              child: Text("Block User", style: TextStyle(color: Colors.redAccent)),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -369,22 +479,19 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       width: 110,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-            colors: [Color(0xFF1A56DB), Color(0xFF003AB5)]),
+        gradient: const LinearGradient(colors: [Color(0xFF1A56DB), Color(0xFF003AB5)]),
       ),
       child: ElevatedButton(
         onPressed: () {
-          // Navigate to PaymentScreen (ensure the name matches your class)
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => PaymentScreen(
-                name: widget.name,    // Matches 'name' in PaymentScreen
-                upiId: widget.upiId, // Matches 'upiId' in PaymentScreen
+                name: widget.name,
+                upiId: widget.upiId,
               ),
             ),
           ).then((value) {
-            // This refreshes the transaction list when you come back
             setState(() {
               _transactionFuture = _fetchTransactions();
             });
@@ -397,8 +504,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         ),
         child: const Text(
           "PAY",
-          style: TextStyle(
-              fontWeight: FontWeight.w900, fontSize: 15, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.white),
         ),
       ),
     );
@@ -407,12 +513,15 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   Widget _buildMessageInput(BuildContext context) {
     return Expanded(
       child: Container(
-        height: 52, padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(color: AppColors.bg(context).withOpacity(0.5), borderRadius: BorderRadius.circular(16)),
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration:
+        BoxDecoration(color: AppColors.bg(context).withOpacity(0.5), borderRadius: BorderRadius.circular(16)),
         child: TextField(
           style: TextStyle(color: AppColors.primaryText(context)),
           decoration: InputDecoration(
-            hintText: "Send a message...", border: InputBorder.none,
+            hintText: "Send a message...",
+            border: InputBorder.none,
             suffixIcon: const Icon(Icons.send_rounded, color: Color(0xFF1A56DB), size: 20),
           ),
         ),
