@@ -183,6 +183,32 @@ class SupabaseService {
     }
   }
 
+  // Search users by name, UPI ID, or phone number
+  Future<List<UserModel>> searchUsers(String query) async {
+    try {
+      if (query.isEmpty) return [];
+      
+      // Remove any non-alphanumeric characters from the query
+      final cleanQuery = query.replaceAll(RegExp(r'[^a-zA-Z0-9@.]'), '').toLowerCase();
+      
+      // Search in name, upi_id, and phone_number columns using OR conditions
+      final response = await _client
+          .from('upi_user')
+          .select()
+          .or('full_name.ilike.%$cleanQuery%,upi_id.ilike.%$cleanQuery%,phone_number.ilike.%$cleanQuery%')
+          .limit(10);
+          
+      if (response is List) {
+        return response.map<UserModel>((user) => UserModel.fromMap(user)).toList();
+      }
+      
+      return [];
+    } catch (e) {
+      debugPrint('Error searching users: $e');
+      return [];
+    }
+  }
+
   // Get user by ID
   Future<UserModel?> getUserById(int userId) async {
     try {
