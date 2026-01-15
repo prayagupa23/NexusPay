@@ -50,7 +50,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     // Check if it's a UPI payment QR code
     if (data.startsWith('upi://pay?')) {
       _handleUpiPayment(data);
-    } 
+    }
     // Check if it's a URL
     else if (Uri.tryParse(data)?.hasAbsolutePath ?? false) {
       await _handleUrl(data);
@@ -148,10 +148,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 const SizedBox(height: 8),
                 Text(
                   '• $reasons',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ],
             ),
@@ -162,9 +159,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 Navigator.of(context).pop(); // Close dialog
                 Navigator.of(context).pop(); // Close scanner
               },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white70,
-              ),
+              style: TextButton.styleFrom(foregroundColor: Colors.white70),
               child: const Text('CANCEL'),
             ),
             ElevatedButton(
@@ -172,30 +167,25 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 // Close both dialog and scanner screen first
                 Navigator.of(context).pop(); // Close dialog
                 Navigator.of(context).pop(); // Close scanner
-                
+
                 // Then open the URL
                 try {
                   // Ensure URL has a scheme
                   String urlToLaunch = url;
-                  if (!urlToLaunch.startsWith('http://') && !urlToLaunch.startsWith('https://')) {
+                  if (!urlToLaunch.startsWith('http://') &&
+                      !urlToLaunch.startsWith('https://')) {
                     urlToLaunch = 'https://$urlToLaunch';
                   }
-                  
+
                   final uri = Uri.parse(urlToLaunch);
-                  
+
                   if (await canLaunchUrl(uri)) {
-                    await launchUrl(
-                      uri,
-                      mode: LaunchMode.externalApplication,
-                    );
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
                     print('Successfully launched URL: $urlToLaunch');
                   } else {
                     print('Could not launch URL: $urlToLaunch');
                     // Fallback to web view if external app fails
-                    await launchUrl(
-                      uri,
-                      mode: LaunchMode.inAppWebView,
-                    );
+                    await launchUrl(uri, mode: LaunchMode.inAppWebView);
                   }
                 } catch (e) {
                   print('Error launching URL: $e');
@@ -224,7 +214,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
   Future<void> _handleUrl(String url) async {
     if (!mounted) return;
-    
+
     setState(() {
       _isProcessing = true;
     });
@@ -241,10 +231,12 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         final responseData = json.decode(response.body);
         final verdict = responseData['verdict']?.toString() ?? 'Unknown';
         final riskScore = responseData['risk_score']?.toString() ?? 'N/A';
-        final reasons = responseData['reasons'] is List 
-            ? (responseData['reasons'] as List).map((e) => e.toString()).join('\n• ')
+        final reasons = responseData['reasons'] is List
+            ? (responseData['reasons'] as List)
+                  .map((e) => e.toString())
+                  .join('\n• ')
             : 'No additional information';
-        
+
         if (mounted) {
           await _showUrlScanDialog(
             url: url,
@@ -282,10 +274,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: AppColors.darkSurface,
-          title: const Text(
-            'Error',
-            style: TextStyle(color: Colors.white),
-          ),
+          title: const Text('Error', style: TextStyle(color: Colors.white)),
           content: Text(
             'Error scanning URL: $e',
             style: const TextStyle(color: Colors.white70),
@@ -310,10 +299,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
   void _handleTextContent(String text) {
     // Return any other text content
-    Navigator.pop(context, {
-      'type': 'text',
-      'content': text,
-    });
+    Navigator.pop(context, {'type': 'text', 'content': text});
   }
 
   void _handleUpiPayment(String upiPayload) {
@@ -391,10 +377,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       body: Stack(
         children: [
           // Camera view
-          MobileScanner(
-            controller: _controller,
-            onDetect: _handleBarcode,
-          ),
+          MobileScanner(controller: _controller, onDetect: _handleBarcode),
 
           // Overlay with scan area border
           _buildScannerOverlay(),
@@ -414,10 +397,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
               child: const Text(
                 'Position the QR code within the frame',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 14),
               ),
             ),
           ),
@@ -428,7 +408,9 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
               color: Colors.black.withOpacity(0.7),
               child: const Center(
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBlue),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.primaryBlue,
+                  ),
                 ),
               ),
             ),
@@ -510,16 +492,8 @@ class CornerBorderPainter extends CustomPainter {
     final cornerLength = 30.0;
 
     // Top-left corner
-    canvas.drawLine(
-      Offset(0, cornerLength),
-      Offset(0, 0),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(0, 0),
-      Offset(cornerLength, 0),
-      paint,
-    );
+    canvas.drawLine(Offset(0, cornerLength), Offset(0, 0), paint);
+    canvas.drawLine(Offset(0, 0), Offset(cornerLength, 0), paint);
 
     // Top-right corner
     canvas.drawLine(
@@ -561,4 +535,3 @@ class CornerBorderPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
