@@ -354,7 +354,7 @@ class _DetectFraudScreenState extends State<DetectFraudScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://qr-url-detector-mc17.onrender.com/scan'),
+        Uri.parse('http://13.53.42.24:5000/scan'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'url': url}),
       );
@@ -451,7 +451,7 @@ class _DetectFraudScreenState extends State<DetectFraudScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('https://phishing-detection-model.onrender.com/analyze-text'),
+        Uri.parse('http://13.60.192.189:8000/analyze-text'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'text': text}),
       );

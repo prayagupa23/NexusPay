@@ -222,7 +222,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     try {
       // Make an API call to the provided URL scanning service
       final response = await http.post(
-        Uri.parse('https://qr-url-detector-mc17.onrender.com/scan'),
+        Uri.parse('http://13.53.42.24:5000/scan'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'url': url}),
       );

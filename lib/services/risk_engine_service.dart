@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:heisenbug/models/risk_result.dart';
 
 class RiskEngineService {
-  static const String _baseUrl = 'https://risk-score-engine.onrender.com';
+  static const String _baseUrl = 'http://51.20.65.223:5000';
 
   static Future<RiskResult> evaluateRisk({
     required int userId,
