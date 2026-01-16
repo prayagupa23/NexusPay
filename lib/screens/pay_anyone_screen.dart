@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:no_screenshot/no_screenshot.dart';
 import '../theme/app_colors.dart';
 import '../tile/avatar_tile.dart';
 import 'payment_screen.dart';
@@ -68,6 +69,7 @@ class _PayScreenState extends State<PayScreen> {
   @override
   void initState() {
     super.initState();
+    _enableScreenshotProtection();
     _supabaseService = SupabaseService(SupabaseConfig.client);
     _loadData();
     // TODO: Handle contact permissions in the future
@@ -76,10 +78,27 @@ class _PayScreenState extends State<PayScreen> {
 
   @override
   void dispose() {
+    _disableScreenshotProtection();
     _searchController.removeListener(_onSearchChanged);
     _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _enableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOff();
+    } catch (e) {
+      debugPrint('Error enabling screenshot protection: $e');
+    }
+  }
+
+  Future<void> _disableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOn();
+    } catch (e) {
+      debugPrint('Error disabling screenshot protection: $e');
+    }
   }
 
   void _onSearchChanged() {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:no_screenshot/no_screenshot.dart';
 import '../theme/app_colors.dart';
 import '../services/fraud_data_service.dart';
 import '../services/heatmap_coordinates_service.dart';
@@ -24,13 +25,31 @@ class _HeatmapScreenState extends State<HeatmapScreen> {
   @override
   void initState() {
     super.initState();
+    _enableScreenshotProtection();
     _loadFraudData();
   }
 
   @override
   void dispose() {
+    _disableScreenshotProtection();
     _removeTooltip();
     super.dispose();
+  }
+
+  Future<void> _enableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOff();
+    } catch (e) {
+      debugPrint('Error enabling screenshot protection: $e');
+    }
+  }
+
+  Future<void> _disableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOn();
+    } catch (e) {
+      debugPrint('Error disabling screenshot protection: $e');
+    }
   }
 
   Future<void> _loadFraudData() async {
