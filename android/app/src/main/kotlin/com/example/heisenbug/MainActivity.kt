@@ -1,5 +1,6 @@
-package com.example.heisenbug
+package com.example.heisenbug   // ⚠️ keep your own package name
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+class MainActivity: FlutterFragmentActivity() {
+}
