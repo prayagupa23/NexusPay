@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Added for Haptic feedback
 import 'package:country_picker/country_picker.dart';
+import 'package:no_screenshot/no_screenshot.dart';
 import '../theme/app_colors.dart';
 import 'verification_screen.dart';
 import '../services/user_registration_state.dart';
@@ -31,6 +32,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    _enableScreenshotProtection();
     _supabaseService = SupabaseService(SupabaseConfig.client);
     _nameController.text = _registrationState.fullName ?? '';
     _phoneController.text = _registrationState.phoneNumber ?? '';
@@ -39,10 +41,27 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
 
   @override
   void dispose() {
+    _disableScreenshotProtection();
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _enableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOff();
+    } catch (e) {
+      debugPrint('Error enabling screenshot protection: $e');
+    }
+  }
+
+  Future<void> _disableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOn();
+    } catch (e) {
+      debugPrint('Error disabling screenshot protection: $e');
+    }
   }
 
   @override

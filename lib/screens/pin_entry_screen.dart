@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:no_screenshot/no_screenshot.dart';
 import '../theme/app_colors.dart';
 import 'package:heisenbug/screens/payment_success_screen.dart';
 import '../services/supabase_service.dart';
@@ -41,7 +42,30 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
   @override
   void initState() {
     super.initState();
+    _enableScreenshotProtection();
     _supabaseService = SupabaseService(SupabaseConfig.client);
+  }
+
+  @override
+  void dispose() {
+    _disableScreenshotProtection();
+    super.dispose();
+  }
+
+  Future<void> _enableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOff();
+    } catch (e) {
+      debugPrint('Error enabling screenshot protection: $e');
+    }
+  }
+
+  Future<void> _disableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOn();
+    } catch (e) {
+      debugPrint('Error disabling screenshot protection: $e');
+    }
   }
 
   Future<void> _processPayment() async {

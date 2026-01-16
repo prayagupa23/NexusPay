@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_device_name/flutter_device_name.dart';
+import 'package:no_screenshot/no_screenshot.dart';
 import 'package:heisenbug/core/user_session.dart';
 import 'package:heisenbug/screens/account_selection_screen.dart';
 import 'package:heisenbug/screens/login_screen.dart';
@@ -31,10 +32,33 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   void initState() {
     super.initState();
+    _enableScreenshotProtection();
     _initDeviceInfo();
     setState(() {
       _isLoading = false;
     });
+  }
+
+  @override
+  void dispose() {
+    _disableScreenshotProtection();
+    super.dispose();
+  }
+
+  Future<void> _enableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOff();
+    } catch (e) {
+      debugPrint('Error enabling screenshot protection: $e');
+    }
+  }
+
+  Future<void> _disableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOn();
+    } catch (e) {
+      debugPrint('Error disabling screenshot protection: $e');
+    }
   }
 
   Future<void> _initDeviceInfo() async {

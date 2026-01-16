@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For Haptics
+import 'package:no_screenshot/no_screenshot.dart';
 import 'package:heisenbug/screens/link_bank_account_screen.dart';
 import '../theme/app_colors.dart';
 import '../services/user_registration_state.dart';
@@ -30,7 +31,33 @@ class _VerificationScreenState extends State<VerificationScreen> {
   @override
   void initState() {
     super.initState();
+    _enableScreenshotProtection();
     _supabaseService = SupabaseService(SupabaseConfig.client);
+  }
+
+  @override
+  void dispose() {
+    _disableScreenshotProtection();
+    _aadhaarController.dispose();
+    _accountController.dispose();
+    _confirmAccountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _enableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOff();
+    } catch (e) {
+      debugPrint('Error enabling screenshot protection: $e');
+    }
+  }
+
+  Future<void> _disableScreenshotProtection() async {
+    try {
+      await NoScreenshot.instance.screenshotOn();
+    } catch (e) {
+      debugPrint('Error disabling screenshot protection: $e');
+    }
   }
 
   @override
