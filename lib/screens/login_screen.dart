@@ -391,14 +391,17 @@ Future<void> _handleLogin() async {
       throw Exception();
     }
 
-    // ✅ THIS IS THE CRITICAL LINE
+    // ✅ Store user session data
     UserSession.userId = user.userId; // <-- store once
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'logged_in_phone',
-      _phoneController.text.trim(),
-    );
+    await Future.wait([
+      prefs.setString('logged_in_phone', _phoneController.text.trim()),
+      prefs.setString('user_upi_id', user.upiId ?? ''),
+      prefs.setString('user_id', user.userId.toString()),
+    ]);
+
+    debugPrint('✅ Logged in user UPI ID: ${user.upiId}');
 
     if (mounted) {
       Navigator.pushAndRemoveUntil(

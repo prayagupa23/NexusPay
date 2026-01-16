@@ -16,7 +16,7 @@ class HeatmapScreen extends StatefulWidget {
 class _HeatmapScreenState extends State<HeatmapScreen> {
   // TEMP: local / placeholder URL
   static const String heatmapUrl =
-      "https://nexuspay-heatmap-api.onrender.com/heatmap/india";
+      "http://16.171.29.46:8000/heatmap/india";
 
   List<FraudData> _fraudData = [];
   OverlayEntry? _tooltipOverlay;

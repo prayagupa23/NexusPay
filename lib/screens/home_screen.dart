@@ -1,30 +1,37 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:heisenbug/screens/contact_detail_screen.dart';
 import 'package:heisenbug/services/contact_sync_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Ensure these imports match your actual file structure
-import '../theme/app_colors.dart';
-import 'pay_anyone_screen.dart';
-import 'contact_detail_screen.dart';
-import 'profile_screen.dart';
-import 'qr_scanner_screen.dart';
-import 'payment_screen.dart';
+// Services
+import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
-import '../utils/supabase_config.dart';
+
+// Models
 import '../models/user_model.dart';
 import '../models/transaction_model.dart';
+import '../models/trusted_contact_model.dart';
+
+// Widgets
+import '../widgets/bottom_nav_bar.dart';
 import '../tile/avatar_tile.dart';
+
+// Screens
 import 'chat_screen.dart';
-import 'money_screen.dart';
 import 'heatmap_screen.dart';
 import 'detect_fraud_screen.dart';
-import '../widgets/bottom_nav_bar.dart';
-import '../models/recipient_honor_score_model.dart';
-import '../services/recipient_honor_score_db.dart';
 import 'trusted_contacts_screen.dart';
-import '../models/trusted_contact_model.dart';
+import 'qr_scanner_screen.dart';
+import 'payment_screen.dart';
+import 'profile_screen.dart';
+import 'money_screen.dart';
+
+// Theme
+import '../theme/app_colors.dart';
+import '../utils/supabase_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -129,7 +136,7 @@ class _AppBarSection extends StatelessWidget {
           GestureDetector(
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              MaterialPageRoute(builder: (context) => ProfileScreen()),
             ),
             child: Container(
               width: 48,
@@ -281,16 +288,16 @@ class _QuickActionsRow extends StatelessWidget {
             onTap: () async {
               final result = await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+                MaterialPageRoute(builder: (context) => QrScannerScreen()),
               );
 
               if (result != null && result is Map<String, dynamic>) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => PaymentScreen(
-                      name: result['name'] as String,
-                      upiId: result['upiId'] as String,
+                    builder: (context) => PaymentScreen(
+                      name: result['name']?.toString() ?? 'Unknown Sender',
+                      upiId: result['upiId']?.toString() ?? '',
                     ),
                   ),
                 );
@@ -304,7 +311,10 @@ class _QuickActionsRow extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const PayScreen()),
+                MaterialPageRoute(builder: (context) => PaymentScreen(
+                  name: 'New Payment',
+                  upiId: '',
+                )),
               );
             },
           ),
@@ -386,10 +396,13 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
   UserModel? _unknownUser;
   bool _isLoading = true;
 
+  late final SupabaseClient _supabaseClient;
+
   @override
   void initState() {
     super.initState();
-    _supabaseService = SupabaseService(SupabaseConfig.client);
+    _supabaseClient = SupabaseConfig.client;
+    _supabaseService = SupabaseService(_supabaseClient);
     _loadUnknownUserAlert();
   }
 
@@ -709,12 +722,171 @@ class _UnknownUserAlertSectionState extends State<_UnknownUserAlertSection> {
 // -----------------------------------------------------------------------------
 // FRAUD INTELLIGENCE
 // -----------------------------------------------------------------------------
-class _FraudIntelligenceSection extends StatelessWidget {
+class _FraudIntelligenceSection extends StatefulWidget {
   const _FraudIntelligenceSection();
+
+  @override
+  State<_FraudIntelligenceSection> createState() => _FraudIntelligenceSectionState();
+}
+
+class _FraudIntelligenceSectionState extends State<_FraudIntelligenceSection> {
+  bool _isLoading = true;
+  bool _hasUnverifiedSenders = false;
+  late final SupabaseService _supabaseService;
+  late final SupabaseClient _supabaseClient;
+
+  @override
+  void initState() {
+    super.initState();
+    _supabaseClient = SupabaseConfig.client;
+    _supabaseService = SupabaseService(_supabaseClient);
+    _initializeAndCheck();
+  }
+
+  Future<void> _initializeAndCheck() async {
+    // Initialize notification service
+    await _notificationService.initialize();
+    // Then check for unverified senders
+    await _checkForUnverifiedSenders();
+  }
+
+  final NotificationService _notificationService = NotificationService();
+  bool _notificationShown = false;
+  
+  Future<void> _checkForUnverifiedSenders() async {
+    try {
+      // Get current user's UPI ID
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Log all stored keys for debugging
+      final allKeys = prefs.getKeys();
+      debugPrint('🔑 Stored SharedPreferences keys: ${allKeys.join(', ')}');
+      
+      // Get and log the UPI ID
+      final currentUserUpi = prefs.getString('user_upi_id');
+      final currentUserId = prefs.getString('user_id');
+      final loggedInPhone = prefs.getString('logged_in_phone');
+      
+      debugPrint('''
+      ℹ️ User Session Info:
+      - UPI ID: $currentUserUpi
+      - User ID: $currentUserId
+      - Logged In Phone: $loggedInPhone
+      ''');
+      
+      if (currentUserUpi == null || currentUserUpi.isEmpty) {
+        debugPrint('❌ Current user UPI ID is null or empty');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      debugPrint('🔍 Checking transactions for receiver_upi: $currentUserUpi');
+      
+      // First, get the last 3 incoming transactions
+      // First, get the last 3 incoming transactions where the current user is the receiver
+      final transactionsResponse = await _supabaseService.client
+          .from('transactions')
+          .select('id, user_id, receiver_upi, amount, created_at')
+          .eq('receiver_upi', currentUserUpi)
+          .eq('status', 'SUCCESS')  // Only consider successful transactions
+          .order('created_at', ascending: false)
+          .limit(3);
+          
+      debugPrint('🔍 Found ${transactionsResponse.length} recent transactions for UPI: $currentUserUpi');
+
+      debugPrint('📊 Found ${transactionsResponse.length} recent transactions');
+
+      // Then, fetch the sender profiles in a separate query
+      final response = [];
+      for (var tx in transactionsResponse) {
+        final senderId = tx['user_id'] as int?;
+        if (senderId == null) {
+          debugPrint('⚠️ Transaction ${tx['id']} has no sender ID');
+          continue;
+        }
+        
+        debugPrint('🔍 Looking up profile for user ID: $senderId');
+        
+        // Look up the sender's profile by user_id
+        final profileResponse = await _supabaseService.client
+            .from('user_profile')
+            .select('unverified_user, full_name, upi_id')
+            .eq('user_id', senderId)
+            .maybeSingle();
+            
+        debugPrint('🔍 Profile lookup for user ID $senderId: ${profileResponse != null ? 'Found' : 'Not found'}');
+        if (profileResponse != null) {
+          debugPrint('   - UPI: ${profileResponse['upi_id']}, Unverified: ${profileResponse['unverified_user']}');
+        }
+
+        response.add({
+          ...tx,
+          'user_profile': profileResponse,
+        });
+      }
+
+      debugPrint('📊 Found ${response.length} recent transactions');
+      
+      // Log details of each transaction
+      for (var i = 0; i < response.length; i++) {
+        final tx = response[i];
+        debugPrint('''
+          📝 Transaction ${i + 1}:
+          - ID: ${tx['id']}
+          - Sender UPI: ${tx['sender_upi']}
+          - Receiver UPI: ${tx['receiver_upi']}
+          - User ID: ${tx['user_id']}
+          - Amount: ${tx['amount']}
+          - Created At: ${tx['created_at']}
+          - Sender Name: ${tx['user_profile']?['full_name'] ?? 'N/A'}
+          - Unverified User: ${tx['user_profile']?['unverified_user'] ?? 'N/A'}
+        ''');
+      }
+
+      // Check if any of the senders are unverified
+      bool hasUnverifiedSender = false;
+      
+      for (var tx in response) {
+        final isUnverified = tx['user_profile']?['unverified_user'] == true;
+        if (isUnverified) {
+          hasUnverifiedSender = true;
+          final senderName = tx['user_profile']?['full_name'] ?? 'Unknown Sender';
+          final amount = tx['amount']?.toString() ?? '0';
+          debugPrint('⚠️ Found unverified sender in recent transactions: $senderName (₹$amount)');
+          
+          // Only show notification if it hasn't been shown yet for this check
+          if (!_notificationShown) {
+            await _notificationService.showFraudAlertNotification(
+              senderName: senderName,
+              amount: amount,
+            );
+            _notificationShown = true;
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _hasUnverifiedSenders = hasUnverifiedSender;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking for unverified senders: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Don't show anything if still loading or no unverified senders
+    if (_isLoading || !_hasUnverifiedSenders) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -914,6 +1086,7 @@ class TrustedContactsSection extends StatefulWidget {
 
 class _TrustedContactsSectionState extends State<TrustedContactsSection> {
   late final SupabaseService _supabaseService;
+  late final SupabaseClient _supabaseClient;
   List<TrustedContact> _trustedContacts = [];
   bool _isLoading = true;
   String? _currentUserUpi;
@@ -922,7 +1095,8 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
   @override
   void initState() {
     super.initState();
-    _supabaseService = SupabaseService(SupabaseConfig.client);
+    _supabaseClient = SupabaseConfig.client;
+    _supabaseService = SupabaseService(_supabaseClient);
     _loadData();
   }
 

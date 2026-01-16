@@ -240,9 +240,9 @@ class _PinLockScreenState extends State<PinLockScreen> {
         bool active = i < _pinController.text.length;
         return AnimatedContainer(
           duration: 200.ms,
-          margin: const EdgeInsets.symmetric(horizontal: 12),
-          width: 18,
-          height: 18,
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          width: 16,
+          height: 16,
           decoration: BoxDecoration(
             color: active ? AppColors.primaryBlue : Colors.transparent,
             shape: BoxShape.circle,
@@ -288,7 +288,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(32, 40, 32, 40),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
           decoration: BoxDecoration(
             color: AppColors.surface(context).withOpacity(0.8),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
@@ -335,11 +335,11 @@ class _PinLockScreenState extends State<PinLockScreen> {
 
   Widget _numpadRow(List<String?> values) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: values.map((val) {
-          if (val == null) return const SizedBox(width: 60);
+          if (val == null) return const SizedBox(width: 50);
           return _numpadKey(val);
         }).toList(),
       ),
@@ -352,17 +352,17 @@ class _PinLockScreenState extends State<PinLockScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _onKeyPress(val),
-        borderRadius: BorderRadius.circular(40),
+        borderRadius: BorderRadius.circular(30),
         child: Container(
-          width: 70,
-          height: 70,
+          width: 60,
+          height: 60,
           alignment: Alignment.center,
           child: isIcon
               ? Icon(Icons.backspace_outlined,
-                  color: AppColors.primaryText(context), size: 24)
+                  color: AppColors.primaryText(context), size: 20)
               : Text(val,
                   style: TextStyle(
-                      fontSize: 30,
+                      fontSize: 26,
                       fontWeight: FontWeight.w700,
                       color: AppColors.primaryText(context))),
         ),
