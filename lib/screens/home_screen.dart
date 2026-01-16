@@ -27,6 +27,7 @@ import 'qr_scanner_screen.dart';
 import 'payment_screen.dart';
 import 'profile_screen.dart';
 import 'money_screen.dart';
+import 'pay_anyone_screen.dart';
 
 // Theme
 import '../theme/app_colors.dart';
@@ -311,10 +312,7 @@ class _QuickActionsRow extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => PaymentScreen(
-                  name: 'New Payment',
-                  upiId: '',
-                )),
+                MaterialPageRoute(builder: (context) => const PayScreen()),
               );
             },
           ),
