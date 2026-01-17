@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 
 import '../theme/app_colors.dart';
 import '../services/supabase_service.dart';

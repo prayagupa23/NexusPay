@@ -45,13 +45,91 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       theme: ThemeData(
         brightness: Brightness.light,
-        textTheme: GoogleFonts.interTextTheme(),
+        textTheme: GoogleFonts.interTextTheme().apply(
+          bodyColor: const Color(0xFF0F172A), // Darker text for better contrast
+          displayColor: const Color(0xFF0F172A),
+        ),
         primaryColor: AppColors.primaryBlue,
+        scaffoldBackgroundColor: AppColors.lightBg,
+        cardColor: AppColors.lightSurface,
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryBlue,
+            foregroundColor: Colors.white,
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AppColors.lightSecondarySurface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.inputBorder(context)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.inputBorder(context)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.focusColor(context), width: 2),
+          ),
+          labelStyle: TextStyle(
+            color: AppColors.primaryText(context),
+            fontWeight: FontWeight.w600,
+          ),
+          hintStyle: TextStyle(
+            color: AppColors.mutedText(context),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        textTheme: GoogleFonts.interTextTheme(),
+        textTheme: GoogleFonts.interTextTheme().apply(
+          bodyColor: Colors.white, // Pure white for maximum contrast
+          displayColor: Colors.white,
+        ),
         primaryColor: AppColors.primaryBlue,
+        scaffoldBackgroundColor: AppColors.darkBg,
+        cardColor: AppColors.darkSurface,
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryBlue,
+            foregroundColor: Colors.white,
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AppColors.darkSecondarySurface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.inputBorder(context)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.inputBorder(context)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.focusColor(context), width: 2),
+          ),
+          labelStyle: TextStyle(
+            color: AppColors.primaryText(context),
+            fontWeight: FontWeight.w600,
+          ),
+          hintStyle: TextStyle(
+            color: AppColors.mutedText(context),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
       home: const SplashScreen(),
     );
