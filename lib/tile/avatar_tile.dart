@@ -4,17 +4,44 @@ import '../theme/app_colors.dart';
 class ContactAvatar extends StatelessWidget {
   final String name;
   final VoidCallback? onTap;
+  final bool isTrustedContact;
 
-  const ContactAvatar({super.key, required this.name, this.onTap});
+  const ContactAvatar({
+    super.key,
+    required this.name,
+    this.onTap,
+    this.isTrustedContact = false,
+  });
 
-  static Color getAvatarBgColor(String name) {
-    // Use a consistent dark gray-blue color from the theme
-    return const Color(0xFF2E3A59); // Dark gray-blue color
+  static Color getAvatarBgColor(
+    BuildContext context,
+    String name, {
+    bool isTrustedContact = false,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (isTrustedContact && !isDark) {
+      // Trusted contacts in bright mode: Use blue gradient theme
+      return const Color(0xFF1A56DB); // Primary blue color
+    } else if (isDark) {
+      // Dark mode: Use a slightly lighter gray-blue that works well with dark theme
+      return const Color(0xFF2E3A59); // Dark gray-blue color
+    } else {
+      // Light mode: Use a lighter, softer color that works well with light theme
+      return const Color(0xFF6B7280); // Lighter gray for light mode
+    }
   }
 
-  static Color getAvatarTextColor(Color bg) {
-    // Use a light text color that contrasts well with the dark background
-    return Colors.white.withOpacity(0.9);
+  static Color getAvatarTextColor(BuildContext context, Color bg) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (isDark) {
+      // Dark mode: Use light text color that contrasts well with dark background
+      return Colors.white.withOpacity(0.9);
+    } else {
+      // Light mode: Use slightly darker text for better contrast with lighter background
+      return Colors.white.withOpacity(0.95);
+    }
   }
 
   String get _initials {
@@ -28,8 +55,12 @@ class ContactAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color bgColor = getAvatarBgColor(name);
-    final Color textColor = getAvatarTextColor(bgColor);
+    final Color bgColor = getAvatarBgColor(
+      context,
+      name,
+      isTrustedContact: isTrustedContact,
+    );
+    final Color textColor = getAvatarTextColor(context, bgColor);
 
     return GestureDetector(
       onTap: onTap,

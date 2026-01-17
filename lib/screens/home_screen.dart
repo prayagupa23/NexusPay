@@ -89,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const _QuickActionsRow(),
               const SizedBox(height: 32),
               const _FraudIntelligenceSection(),
-              const SizedBox(height: 40),
+              const SizedBox(height: 24),
               const TrustedContactsSection(),
               const SizedBox(height: 120),
             ],
@@ -143,7 +143,14 @@ class _AppBarSection extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.secondarySurface(context),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primaryBlue,
+                    AppColors.primaryBlue.withOpacity(0.8),
+                  ],
+                ),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
@@ -152,11 +159,22 @@ class _AppBarSection extends StatelessWidget {
                     offset: const Offset(0, 2),
                   ),
                 ],
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.2),
+                  width: 1.5,
+                ),
               ),
-              child: Icon(
-                Icons.person_rounded,
-                color: AppColors.primaryText(context).withOpacity(0.8),
-                size: 26,
+              child: Stack(
+                children: [
+                  // Main icon
+                  Center(
+                    child: Icon(
+                      Icons.person_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -183,9 +201,16 @@ class _ProtectionShieldCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 40,
+            offset: const Offset(0, 20),
+            spreadRadius: 2,
+          ),
+          BoxShadow(
+            color: const Color(0xFF1A56DB).withOpacity(0.05),
+            blurRadius: 60,
+            offset: const Offset(0, 30),
+            spreadRadius: 5,
           ),
         ],
       ),
@@ -724,7 +749,8 @@ class _FraudIntelligenceSection extends StatefulWidget {
   const _FraudIntelligenceSection();
 
   @override
-  State<_FraudIntelligenceSection> createState() => _FraudIntelligenceSectionState();
+  State<_FraudIntelligenceSection> createState() =>
+      _FraudIntelligenceSectionState();
 }
 
 class _FraudIntelligenceSectionState extends State<_FraudIntelligenceSection> {
@@ -750,28 +776,28 @@ class _FraudIntelligenceSectionState extends State<_FraudIntelligenceSection> {
 
   final NotificationService _notificationService = NotificationService();
   bool _notificationShown = false;
-  
+
   Future<void> _checkForUnverifiedSenders() async {
     try {
       // Get current user's UPI ID
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Log all stored keys for debugging
       final allKeys = prefs.getKeys();
       debugPrint('🔑 Stored SharedPreferences keys: ${allKeys.join(', ')}');
-      
+
       // Get and log the UPI ID
       final currentUserUpi = prefs.getString('user_upi_id');
       final currentUserId = prefs.getString('user_id');
       final loggedInPhone = prefs.getString('logged_in_phone');
-      
+
       debugPrint('''
       ℹ️ User Session Info:
       - UPI ID: $currentUserUpi
       - User ID: $currentUserId
       - Logged In Phone: $loggedInPhone
       ''');
-      
+
       if (currentUserUpi == null || currentUserUpi.isEmpty) {
         debugPrint('❌ Current user UPI ID is null or empty');
         setState(() => _isLoading = false);
@@ -779,18 +805,20 @@ class _FraudIntelligenceSectionState extends State<_FraudIntelligenceSection> {
       }
 
       debugPrint('🔍 Checking transactions for receiver_upi: $currentUserUpi');
-      
+
       // First, get the last 3 incoming transactions
       // First, get the last 3 incoming transactions where the current user is the receiver
       final transactionsResponse = await _supabaseService.client
           .from('transactions')
           .select('id, user_id, receiver_upi, amount, created_at')
           .eq('receiver_upi', currentUserUpi)
-          .eq('status', 'SUCCESS')  // Only consider successful transactions
+          .eq('status', 'SUCCESS') // Only consider successful transactions
           .order('created_at', ascending: false)
           .limit(3);
-          
-      debugPrint('🔍 Found ${transactionsResponse.length} recent transactions for UPI: $currentUserUpi');
+
+      debugPrint(
+        '🔍 Found ${transactionsResponse.length} recent transactions for UPI: $currentUserUpi',
+      );
 
       debugPrint('📊 Found ${transactionsResponse.length} recent transactions');
 
@@ -802,29 +830,30 @@ class _FraudIntelligenceSectionState extends State<_FraudIntelligenceSection> {
           debugPrint('⚠️ Transaction ${tx['id']} has no sender ID');
           continue;
         }
-        
+
         debugPrint('🔍 Looking up profile for user ID: $senderId');
-        
+
         // Look up the sender's profile by user_id
         final profileResponse = await _supabaseService.client
             .from('user_profile')
             .select('unverified_user, full_name, upi_id')
             .eq('user_id', senderId)
             .maybeSingle();
-            
-        debugPrint('🔍 Profile lookup for user ID $senderId: ${profileResponse != null ? 'Found' : 'Not found'}');
+
+        debugPrint(
+          '🔍 Profile lookup for user ID $senderId: ${profileResponse != null ? 'Found' : 'Not found'}',
+        );
         if (profileResponse != null) {
-          debugPrint('   - UPI: ${profileResponse['upi_id']}, Unverified: ${profileResponse['unverified_user']}');
+          debugPrint(
+            '   - UPI: ${profileResponse['upi_id']}, Unverified: ${profileResponse['unverified_user']}',
+          );
         }
 
-        response.add({
-          ...tx,
-          'user_profile': profileResponse,
-        });
+        response.add({...tx, 'user_profile': profileResponse});
       }
 
       debugPrint('📊 Found ${response.length} recent transactions');
-      
+
       // Log details of each transaction
       for (var i = 0; i < response.length; i++) {
         final tx = response[i];
@@ -843,15 +872,18 @@ class _FraudIntelligenceSectionState extends State<_FraudIntelligenceSection> {
 
       // Check if any of the senders are unverified
       bool hasUnverifiedSender = false;
-      
+
       for (var tx in response) {
         final isUnverified = tx['user_profile']?['unverified_user'] == true;
         if (isUnverified) {
           hasUnverifiedSender = true;
-          final senderName = tx['user_profile']?['full_name'] ?? 'Unknown Sender';
+          final senderName =
+              tx['user_profile']?['full_name'] ?? 'Unknown Sender';
           final amount = tx['amount']?.toString() ?? '0';
-          debugPrint('⚠️ Found unverified sender in recent transactions: $senderName (₹$amount)');
-          
+          debugPrint(
+            '⚠️ Found unverified sender in recent transactions: $senderName (₹$amount)',
+          );
+
           // Only show notification if it hasn't been shown yet for this check
           if (!_notificationShown) {
             await _notificationService.showFraudAlertNotification(
@@ -880,12 +912,8 @@ class _FraudIntelligenceSectionState extends State<_FraudIntelligenceSection> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    // Don't show anything if still loading or no unverified senders
-    if (_isLoading || !_hasUnverifiedSenders) {
-      return const SizedBox.shrink();
-    }
 
+    // Always show the section, but display different content based on status
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
@@ -915,160 +943,262 @@ class _FraudIntelligenceSectionState extends State<_FraudIntelligenceSection> {
             ],
           ),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDark
-                    ? [
-                        const Color(0xFF4A1A1A).withOpacity(0.8),
-                        const Color(0xFF2A0A0A).withOpacity(0.9),
-                        const Color(0xFF1A0505),
-                      ]
-                    : [
-                        const Color(0xFFFFE8E8),
-                        const Color(0xFFFFD1D1),
-                        const Color(0xFFFFC7C7),
-                      ],
-              ),
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(
-                color: isDark
-                    ? AppColors.dangerRed.withOpacity(0.3)
-                    : AppColors.dangerRed.withOpacity(0.2),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.dangerRed.withOpacity(isDark ? 0.2 : 0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                  spreadRadius: 2,
+
+          // Show content based on fraud detection status
+          if (_isLoading) ...[
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.surface(context),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.secondarySurface(context).withOpacity(0.3),
+                  width: 1,
                 ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF450A0A)
-                            : const Color(0xFFFFDADA),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(
-                        Icons.gpp_maybe_rounded,
-                        color: isDark
-                            ? const Color(0xFFF87171)
-                            : const Color(0xFFE11D48),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "Critical Alert",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 16,
-                                  color: isDark ? Colors.white : Colors.black,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFFE11D48,
-                                  ).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  "HIGH RISK",
-                                  style: TextStyle(
-                                    color: isDark
-                                        ? const Color(0xFFF87171)
-                                        : const Color(0xFFE11D48),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            "Unverified Contact Detected",
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: isDark
-                                  ? const Color(0xFFFCA5A5)
-                                  : const Color(0xFF991B1B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  "Unverified contact detected. Verify now to ensure your account security.",
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.4,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.secondaryText(context),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.infoCyan.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.analytics_rounded,
+                      color: AppColors.infoCyan,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Analyzing fraud patterns...",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryText(context),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Checking your transactions for suspicious activity",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.secondaryText(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (_hasUnverifiedSenders) ...[
+            // Existing fraud alert content
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          const Color(0xFF4A1A1A).withOpacity(0.8),
+                          const Color(0xFF2A0A0A).withOpacity(0.9),
+                          const Color(0xFF1A0505),
+                        ]
+                      : [
+                          const Color(0xFFFFE8E8),
+                          const Color(0xFFFFD1D1),
+                          const Color(0xFFFFC7C7),
+                        ],
                 ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark
-                          ? const Color(0xFF2D2D2D)
-                          : Colors.white,
-                      foregroundColor: isDark
-                          ? Colors.white
-                          : const Color(0xFFE11D48),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
+                borderRadius: BorderRadius.circular(32),
+                border: Border.all(
+                  color: isDark
+                      ? AppColors.dangerRed.withOpacity(0.3)
+                      : AppColors.dangerRed.withOpacity(0.2),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.dangerRed.withOpacity(isDark ? 0.2 : 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
                           color: isDark
                               ? const Color(0xFF450A0A)
-                              : const Color(0xFFFEE2E2),
+                              : const Color(0xFFFFDADA),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          Icons.gpp_maybe_rounded,
+                          color: isDark
+                              ? const Color(0xFFF87171)
+                              : const Color(0xFFE11D48),
                         ),
                       ),
-                    ),
-                    child: const Text(
-                      "Verify Contact",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Critical Alert",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 16,
+                                    color: isDark ? Colors.white : Colors.black,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFE11D48,
+                                    ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    "HIGH RISK",
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? const Color(0xFFF87171)
+                                          : const Color(0xFFE11D48),
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              "Unverified Contact Detected",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: isDark
+                                    ? const Color(0xFFFCA5A5)
+                                    : const Color(0xFF991B1B),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "Unverified contact detected. Verify now to ensure your account security.",
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.secondaryText(context),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
-          ),
+          ] else ...[
+            // No fraud detected content
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.surface(context),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.secondarySurface(context).withOpacity(0.3),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.15 : 0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                    spreadRadius: 1,
+                  ),
+                  BoxShadow(
+                    color: AppColors.successGreen.withOpacity(
+                      isDark ? 0.08 : 0.05,
+                    ),
+                    blurRadius: 30,
+                    offset: const Offset(0, 12),
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.successGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.successGreen,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "No frauds detected",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryText(context),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Your account is secure. All transactions appear to be legitimate.",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.secondaryText(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1103,7 +1233,7 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
       debugPrint('Loading trusted contacts...');
       final prefs = await SharedPreferences.getInstance();
       _currentUserUpi = prefs.getString('current_user_upi');
-      
+
       // Get current user ID
       final currentPhone = prefs.getString('logged_in_phone');
       if (currentPhone == null) {
@@ -1125,9 +1255,9 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
         if (mounted) setState(() => _isLoading = false);
         return;
       }
-      
+
       _currentUserId = currentUser.userId!;
-      
+
       // If we don't have UPI ID, try to get it from profile
       if (_currentUserUpi == null) {
         final profile = await _supabaseService.getUserProfile(_currentUserId!);
@@ -1139,11 +1269,15 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
 
       // Get trusted contacts (users with 3+ transactions)
       debugPrint('Fetching trusted contacts for user ID: $_currentUserId');
-      final trustedContacts = await _supabaseService.getTrustedContacts(_currentUserId!);
-      
+      final trustedContacts = await _supabaseService.getTrustedContacts(
+        _currentUserId!,
+      );
+
       debugPrint('Found ${trustedContacts.length} trusted contacts');
       for (var contact in trustedContacts) {
-        debugPrint('Trusted contact: ${contact.fullName} (${contact.upiId}) - ${contact.transactionCount} transactions');
+        debugPrint(
+          'Trusted contact: ${contact.fullName} (${contact.upiId}) - ${contact.transactionCount} transactions',
+        );
       }
 
       if (mounted) {
@@ -1202,64 +1336,70 @@ class _TrustedContactsSectionState extends State<TrustedContactsSection> {
         _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _trustedContacts.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20.0),
-                    child: Center(
-                      child: Text(
-                        'Your trusted contacts will appear here after 3+ transactions',
-                        style: TextStyle(color: Colors.grey),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ..._trustedContacts
-                            .map(
-                              (contact) => Padding(
-                                padding: const EdgeInsets.only(right: 20),
-                                child: Column(
-                                  children: [
-                                    ContactAvatar(
-                                      name: contact.fullName ?? 'Unknown',
-                                      onTap: () {
-                                        if (_currentUserUpi == null || contact.upiId == null) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text("User profile not loaded"),
-                                            ),
-                                          );
-                                          return;
-                                        }
-
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => ContactDetailScreen(
-                                              name: contact.fullName ?? 'Unknown',
-                                              upiId: contact.upiId!,
-                                              currentUserUpi: _currentUserUpi!,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(height: 4),
-                                    // Transaction count text removed as per request
-                                  ],
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        _buildAddButton(),
-                      ],
-                    ),
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20.0),
+                child: Center(
+                  child: Text(
+                    'Your trusted contacts will appear here after 3+ transactions',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
                   ),
+                ),
+              )
+            : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ..._trustedContacts
+                        .map(
+                          (contact) => Padding(
+                            padding: const EdgeInsets.only(right: 20),
+                            child: Column(
+                              children: [
+                                ContactAvatar(
+                                  name: contact.fullName ?? 'Unknown',
+                                  isTrustedContact: true,
+                                  onTap: () {
+                                    if (_currentUserUpi == null ||
+                                        contact.upiId == null) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            "User profile not loaded",
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ContactDetailScreen(
+                                          name: contact.fullName ?? 'Unknown',
+                                          upiId: contact.upiId!,
+                                          currentUserUpi: _currentUserUpi!,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 4),
+                                // Transaction count text removed as per request
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    _buildAddButton(),
+                  ],
+                ),
+              ),
       ],
     );
   }

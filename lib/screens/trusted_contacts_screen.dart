@@ -56,11 +56,11 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   Future<void> _loadSupabaseUsers() async {
     try {
       debugPrint('=== START: Loading Trusted Users (3+ transactions) ===');
-      
+
       // Get current user ID and UPI
       final prefs = await SharedPreferences.getInstance();
       final currentPhone = prefs.getString('logged_in_phone');
-      
+
       if (currentPhone == null) {
         debugPrint('No logged in user found');
         if (mounted) setState(() => _isLoading = false);
@@ -76,16 +76,18 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       }
 
       _userId = currentUser.userId!.toString();
-      
+
       // Get trusted contacts (users with 3+ transactions)
       debugPrint('Fetching trusted contacts for user ID: $_userId');
-      final trustedContacts = await _supabaseService.getTrustedContacts(int.parse(_userId!));
-      
+      final trustedContacts = await _supabaseService.getTrustedContacts(
+        int.parse(_userId!),
+      );
+
       debugPrint('Found ${trustedContacts.length} trusted contacts');
-      
+
       // Convert TrustedContact list to UserModel list
       final trustedUsers = <UserModel>[];
-      
+
       for (var contact in trustedContacts) {
         try {
           if (contact.upiId != null && contact.upiId!.isNotEmpty) {
@@ -93,7 +95,9 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
             final user = await _supabaseService.getUserByUpiId(contact.upiId!);
             if (user != null) {
               trustedUsers.add(user);
-              debugPrint('Added trusted user: ${user.fullName} (${user.upiId}) - ${contact.transactionCount} transactions');
+              debugPrint(
+                'Added trusted user: ${user.fullName} (${user.upiId}) - ${contact.transactionCount} transactions',
+              );
             } else {
               debugPrint('No user found for UPI: ${contact.upiId}');
             }
@@ -104,7 +108,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
           debugPrint('Error loading user with UPI ${contact.upiId}: $e');
         }
       }
-      
+
       if (mounted) {
         setState(() {
           _supabaseUsers = trustedUsers;
@@ -112,7 +116,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         });
         debugPrint('Final trusted users count: ${_supabaseUsers.length}');
       }
-      
+
       debugPrint('=== END: Loading Trusted Users ===');
     } catch (e) {
       debugPrint('Error loading trusted users: $e');
@@ -132,26 +136,28 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       // Get current user's phone number from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final phoneNumber = prefs.getString('logged_in_phone');
-      
+
       if (phoneNumber == null) {
         debugPrint('No logged in phone number found');
         return;
       }
-      
+
       debugPrint('Fetching user profile for phone: $phoneNumber');
-      
+
       try {
         // Get user profile using the same method as profile screen
-        final profile = await _supabaseService.getUserProfileByPhone(phoneNumber);
-        
+        final profile = await _supabaseService.getUserProfileByPhone(
+          phoneNumber,
+        );
+
         if (profile != null) {
           setState(() {
             _userId = profile.userId?.toString();
             _currentUserUpi = profile.upiId;
           });
-          
+
           debugPrint('Fetched current user UPI from profile: $_currentUserUpi');
-          
+
           // Store in shared preferences for backward compatibility
           await prefs.setString('current_user_upi', _currentUserUpi ?? '');
         } else {
@@ -223,7 +229,10 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       // Get current user's UPI ID from shared preferences
       final prefs = await SharedPreferences.getInstance();
       final currentUserUpi = prefs.getString('current_user_upi') ?? '';
-      final currentUserPhoneNumber = currentUserUpi.replaceAll(RegExp(r'[^0-9+]'), '');
+      final currentUserPhoneNumber = currentUserUpi.replaceAll(
+        RegExp(r'[^0-9+]'),
+        '',
+      );
 
       // Get all contacts from device
       final contacts = await FlutterContacts.getContacts(
@@ -241,7 +250,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         if (contact.phones.isNotEmpty) {
           for (final phone in contact.phones) {
             final phoneNumber = phone.number.replaceAll(RegExp(r'[^0-9+]'), '');
-            
+
             // Skip if this is the current user's phone number or if phone number is empty
             if (phoneNumber.isEmpty || phoneNumber == currentUserPhoneNumber) {
               continue;
@@ -308,7 +317,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   void _handleContactTap(Map<String, dynamic> contact) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.darkSurface,
+      backgroundColor: AppColors.surface(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -322,13 +331,13 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                 title: Text(
                   contact['name'] ?? 'Unknown',
                   style: TextStyle(
-                    color: AppColors.darkPrimaryText,
+                    color: _getTextColor(context),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 subtitle: Text(
                   contact['number'] ?? '',
-                  style: TextStyle(color: AppColors.darkSecondaryText),
+                  style: TextStyle(color: _getTextColor(context)),
                 ),
               ),
               const Divider(height: 1, thickness: 0.5),
@@ -409,7 +418,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
 
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-          color: AppColors.darkSurface,
+          color: AppColors.surface(context),
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: AppColors.primaryBlue,
@@ -421,7 +430,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
             title: Text(
               name,
               style: TextStyle(
-                color: AppColors.darkPrimaryText,
+                color: AppColors.primaryText(context),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -430,7 +439,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
               children: [
                 Text(
                   upiId,
-                  style: TextStyle(color: AppColors.darkSecondaryText),
+                  style: TextStyle(color: AppColors.secondaryText(context)),
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -462,7 +471,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
             onTap: () {
               showModalBottomSheet(
                 context: context,
-                backgroundColor: AppColors.darkSurface,
+                backgroundColor: AppColors.surface(context),
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 ),
@@ -575,17 +584,17 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.darkSurface,
+        color: AppColors.surface(context),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: hasPaid
               ? AppColors.primaryBlue.withOpacity(0.5)
-              : AppColors.darkSecondarySurface,
+              : AppColors.secondarySurface(context),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -596,13 +605,13 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         title: Text(
           contact['name'] ?? 'Unknown',
           style: TextStyle(
-            color: AppColors.darkPrimaryText,
+            color: _getTextColor(context),
             fontWeight: FontWeight.w500,
           ),
         ),
         subtitle: Text(
           contact['number'] ?? '',
-          style: TextStyle(color: AppColors.darkSecondaryText),
+          style: TextStyle(color: _getTextColor(context)),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -682,15 +691,27 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     return Colors.red;
   }
 
+  static Color _getTextColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (isDark) {
+      // Dark mode: Use light text color that contrasts well with dark background
+      return Colors.white.withOpacity(0.9);
+    } else {
+      // Bright mode: Use black text for better contrast with white backgrounds
+      return Colors.black;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Trusted Contacts'),
-        backgroundColor: AppColors.darkSurface,
-        foregroundColor: AppColors.darkPrimaryText,
+        backgroundColor: AppColors.surface(context),
+        foregroundColor: AppColors.primaryText(context),
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.darkPrimaryText),
+        iconTheme: IconThemeData(color: AppColors.primaryText(context)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -755,17 +776,20 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
           padding: const EdgeInsets.all(16.0),
           child: TextField(
             controller: _searchController,
-            style: TextStyle(color: AppColors.darkPrimaryText),
+            style: TextStyle(color: AppColors.primaryText(context)),
             decoration: InputDecoration(
               hintText: 'Search contacts...',
-              hintStyle: TextStyle(color: AppColors.darkMutedText),
-              prefixIcon: Icon(Icons.search, color: AppColors.darkMutedText),
+              hintStyle: TextStyle(color: AppColors.mutedText(context)),
+              prefixIcon: Icon(
+                Icons.search,
+                color: AppColors.mutedText(context),
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(30),
                 borderSide: BorderSide.none,
               ),
               filled: true,
-              fillColor: AppColors.darkSecondarySurface,
+              fillColor: AppColors.secondarySurface(context),
               contentPadding: const EdgeInsets.symmetric(
                 vertical: 0,
                 horizontal: 20,
@@ -819,10 +843,10 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.contact_phone,
               size: 64,
-              color: AppColors.darkMutedText,
+              color: AppColors.mutedText(context),
             ),
             const SizedBox(height: 24),
             Text(
@@ -830,18 +854,14 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: AppColors.darkPrimaryText,
+                color: _getTextColor(context),
               ),
-              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               'Please grant contacts permission to view your trusted contacts.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.darkSecondaryText,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: _getTextColor(context), fontSize: 14),
             ),
             const SizedBox(height: 32),
             Row(
