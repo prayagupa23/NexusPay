@@ -37,7 +37,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       final response = await Supabase.instance.client
           .from('transactions')
           .select()
-          .or('receiver_upi.eq.${widget.upiId},receiver_upi.eq.${widget.currentUserUpi}')
+          .or(
+            'receiver_upi.eq.${widget.upiId},receiver_upi.eq.${widget.currentUserUpi}',
+          )
           .order('created_at', ascending: false);
 
       final data = response as List<dynamic>;
@@ -58,7 +60,7 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       "Unauthorized Transaction",
       "Suspicious Links",
       "Abusive Language",
-      "Other"
+      "Other",
     ];
 
     showModalBottomSheet(
@@ -85,7 +87,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
               const SizedBox(height: 8),
               Text(
                 "Select a reason for reporting ${widget.name}. Your report is confidential.",
-                style: TextStyle(fontSize: 13, color: AppColors.secondaryText(context)),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.secondaryText(context),
+                ),
               ),
               const SizedBox(height: 16),
               Flexible(
@@ -97,9 +102,16 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         reasons[index],
-                        style: TextStyle(color: AppColors.primaryText(context), fontSize: 15),
+                        style: TextStyle(
+                          color: AppColors.primaryText(context),
+                          fontSize: 15,
+                        ),
                       ),
-                      trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.mutedText(context)),
+                      trailing: Icon(
+                        Icons.arrow_forward_ios,
+                        size: 14,
+                        color: AppColors.mutedText(context),
+                      ),
                       onTap: () {
                         Navigator.pop(context);
                         _submitReport(reasons[index]);
@@ -120,7 +132,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     try {
       // Maps to your user_reports table: reporter_name, reporter_upi, reported_name, reported_upi, reason
       await Supabase.instance.client.from('user_reports').insert({
-        'reporter_name': 'Current User', // You can replace this with a real name if available
+        'reporter_name':
+            'Current User', // You can replace this with a real name if available
         'reporter_upi': widget.currentUserUpi,
         'reported_name': widget.name,
         'reported_upi': widget.upiId,
@@ -138,7 +151,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to submit report: $e"), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text("Failed to submit report: $e"),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
     }
@@ -149,8 +165,15 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
-    final Color avatarBg = ContactAvatar.getAvatarBgColor(widget.name);
-    final Color avatarText = ContactAvatar.getAvatarTextColor(avatarBg);
+    final Color avatarBg = ContactAvatar.getAvatarBgColor(
+      context,
+      widget.name,
+      isTrustedContact: false,
+    );
+    final Color avatarText = ContactAvatar.getAvatarTextColor(
+      context,
+      avatarBg,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
@@ -185,7 +208,10 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
 
                     return ListView.builder(
                       reverse: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 20,
+                      ),
                       itemCount: allTx.length,
                       itemBuilder: (context, index) {
                         final tx = allTx[index];
@@ -204,7 +230,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     );
   }
 
-  Widget _buildTransactionBubble(BuildContext context, TransactionModel tx, bool isSent) {
+  Widget _buildTransactionBubble(
+    BuildContext context,
+    TransactionModel tx,
+    bool isSent,
+  ) {
     final bool isSuccess = tx.status == 'SUCCESS';
     final Color themeBlue = const Color(0xFF1A56DB);
 
@@ -231,7 +261,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
             ),
           ],
           border: Border.all(
-            color: isSent ? themeBlue.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+            color: isSent
+                ? themeBlue.withOpacity(0.1)
+                : Colors.grey.withOpacity(0.1),
             width: 1,
           ),
         ),
@@ -244,7 +276,8 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                 top: -20,
                 child: CircleAvatar(
                   radius: 40,
-                  backgroundColor: (isSuccess ? themeBlue : Colors.orange).withOpacity(0.03),
+                  backgroundColor: (isSuccess ? themeBlue : Colors.orange)
+                      .withOpacity(0.03),
                 ),
               ),
               Padding(
@@ -258,9 +291,13 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                         Row(
                           children: [
                             Icon(
-                              isSuccess ? Icons.verified_rounded : Icons.pending_rounded,
+                              isSuccess
+                                  ? Icons.verified_rounded
+                                  : Icons.pending_rounded,
                               size: 14,
-                              color: isSuccess ? Colors.green.shade400 : Colors.orange,
+                              color: isSuccess
+                                  ? Colors.green.shade400
+                                  : Colors.orange,
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -269,14 +306,21 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                                 letterSpacing: 1.2,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w900,
-                                color: isSuccess ? Colors.green.shade400 : Colors.orange,
+                                color: isSuccess
+                                    ? Colors.green.shade400
+                                    : Colors.orange,
                               ),
                             ),
                           ],
                         ),
                         Text(
-                          tx.createdAt != null ? DateFormat('hh:mm a').format(tx.createdAt!) : '',
-                          style: TextStyle(color: AppColors.mutedText(context), fontSize: 10),
+                          tx.createdAt != null
+                              ? DateFormat('hh:mm a').format(tx.createdAt!)
+                              : '',
+                          style: TextStyle(
+                            color: AppColors.mutedText(context),
+                            fontSize: 10,
+                          ),
                         ),
                       ],
                     ),
@@ -291,7 +335,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.primaryText(context).withOpacity(0.8),
+                              color: AppColors.primaryText(
+                                context,
+                              ).withOpacity(0.8),
                             ),
                           ),
                         ),
@@ -309,7 +355,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      isSent ? "Sent to ${widget.name}" : "Received from ${widget.name}",
+                      isSent
+                          ? "Sent to ${widget.name}"
+                          : "Received from ${widget.name}",
                       style: TextStyle(
                         color: AppColors.secondaryText(context),
                         fontSize: 13,
@@ -327,7 +375,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                             color: themeBlue.withOpacity(0.08),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(Icons.shield_outlined, color: themeBlue, size: 14),
+                          child: Icon(
+                            Icons.shield_outlined,
+                            color: themeBlue,
+                            size: 14,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Text(
@@ -339,7 +391,11 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
                           ),
                         ),
                         const Spacer(),
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Colors.grey),
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 12,
+                          color: Colors.grey,
+                        ),
                       ],
                     ),
                   ],
@@ -352,17 +408,28 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, double statusBarHeight, Color bg, Color text) {
+  Widget _buildHeader(
+    BuildContext context,
+    double statusBarHeight,
+    Color bg,
+    Color text,
+  ) {
     return Container(
       padding: EdgeInsets.fromLTRB(8, statusBarHeight + 4, 16, 12),
-      decoration: BoxDecoration(color: AppColors.surface(context).withOpacity(0.8)),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context).withOpacity(0.8),
+      ),
       child: ClipRRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Row(
             children: [
               IconButton(
-                icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primaryText(context), size: 20),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: AppColors.primaryText(context),
+                  size: 20,
+                ),
                 onPressed: () => Navigator.pop(context),
               ),
               _buildHeroAvatar(bg, text),
@@ -387,8 +454,14 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         border: Border.all(color: Colors.white, width: 2),
       ),
       alignment: Alignment.center,
-      child: Text(widget.name[0].toUpperCase(),
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: text)),
+      child: Text(
+        widget.name[0].toUpperCase(),
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
+          color: text,
+        ),
+      ),
     );
   }
 
@@ -397,11 +470,22 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(widget.name,
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.primaryText(context))),
-        Text(widget.upiId,
-            style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondaryText(context).withOpacity(0.7))),
+        Text(
+          widget.name,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryText(context),
+          ),
+        ),
+        Text(
+          widget.upiId,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppColors.secondaryText(context).withOpacity(0.7),
+          ),
+        ),
       ],
     );
   }
@@ -409,10 +493,19 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
   Widget _buildActionButtons(BuildContext context) {
     return Row(
       children: [
-        Icon(Icons.verified_user_rounded, color: Colors.blue.shade400, size: 18),
+        Icon(
+          Icons.verified_user_rounded,
+          color: Colors.blue.shade400,
+          size: 18,
+        ),
         PopupMenuButton<String>(
-          icon: Icon(Icons.more_vert_rounded, color: AppColors.primaryText(context)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          icon: Icon(
+            Icons.more_vert_rounded,
+            color: AppColors.primaryText(context),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           color: AppColors.surface(context),
           onSelected: (value) {
             if (value == 'report') {
@@ -426,11 +519,17 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           itemBuilder: (context) => [
             PopupMenuItem(
               value: 'report',
-              child: Text("Report User", style: TextStyle(color: AppColors.primaryText(context))),
+              child: Text(
+                "Report User",
+                style: TextStyle(color: AppColors.primaryText(context)),
+              ),
             ),
             const PopupMenuItem(
               value: 'block',
-              child: Text("Block User", style: TextStyle(color: Colors.redAccent)),
+              child: Text(
+                "Block User",
+                style: TextStyle(color: Colors.redAccent),
+              ),
             ),
           ],
         ),
@@ -443,9 +542,16 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.shield_outlined, size: 48, color: Colors.grey.withOpacity(0.2)),
+          Icon(
+            Icons.shield_outlined,
+            size: 48,
+            color: Colors.grey.withOpacity(0.2),
+          ),
           const SizedBox(height: 16),
-          const Text("Secure UPI Payment Chat", style: TextStyle(color: Colors.grey, fontSize: 13)),
+          const Text(
+            "Secure UPI Payment Chat",
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
         ],
       ),
     );
@@ -459,7 +565,9 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
           decoration: BoxDecoration(
             color: AppColors.surface(context).withOpacity(0.85),
-            border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.1))),
+            border: Border(
+              top: BorderSide(color: Colors.grey.withOpacity(0.1)),
+            ),
           ),
           child: Row(
             children: [
@@ -479,17 +587,17 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       width: 110,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(colors: [Color(0xFF1A56DB), Color(0xFF003AB5)]),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A56DB), Color(0xFF003AB5)],
+        ),
       ),
       child: ElevatedButton(
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => PaymentScreen(
-                name: widget.name,
-                upiId: widget.upiId,
-              ),
+              builder: (_) =>
+                  PaymentScreen(name: widget.name, upiId: widget.upiId),
             ),
           ).then((value) {
             setState(() {
@@ -500,11 +608,17 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
         child: const Text(
           "PAY",
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 15,
+            color: Colors.white,
+          ),
         ),
       ),
     );
@@ -515,14 +629,20 @@ class _ContactDetailScreenState extends State<ContactDetailScreen> {
       child: Container(
         height: 52,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration:
-        BoxDecoration(color: AppColors.bg(context).withOpacity(0.5), borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(
+          color: AppColors.bg(context).withOpacity(0.5),
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: TextField(
           style: TextStyle(color: AppColors.primaryText(context)),
           decoration: InputDecoration(
             hintText: "Send a message...",
             border: InputBorder.none,
-            suffixIcon: const Icon(Icons.send_rounded, color: Color(0xFF1A56DB), size: 20),
+            suffixIcon: const Icon(
+              Icons.send_rounded,
+              color: Color(0xFF1A56DB),
+              size: 20,
+            ),
           ),
         ),
       ),

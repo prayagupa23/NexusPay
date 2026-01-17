@@ -39,12 +39,8 @@ class AppBottomNavBar extends StatelessWidget {
             unselectedItemColor: AppColors.mutedText(context),
             selectedFontSize: 12,
             unselectedFontSize: 12,
-            selectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.w700,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.w500,
-            ),
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
             items: const [
               BottomNavigationBarItem(
                 icon: Icon(Icons.home_rounded),
@@ -65,4 +61,3 @@ class AppBottomNavBar extends StatelessWidget {
     );
   }
 }
-
