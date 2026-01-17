@@ -13,16 +13,16 @@ class AppColors {
   static const Color dangerBgDark = Color(0xFF3A2A2A);
   static const Color dangerBgLight = Color(0xFFFFF1F2);
 
-  // Dark mode - "Deep Charcoal"
+  // Dark mode - "Deep Charcoal" with enhanced visibility
   // Deep charcoal / near-black (not pure black) with premium muted tones
-  static const Color darkBg = Color(0xFF1A1A1A);
-  static const Color darkSurface = Color(0xFF242424);
-  static const Color darkSecondarySurface = Color(0xFF2E2E2E);
-  static const Color darkPrimaryText = Color(0xFFF5F5F5);
-  static const Color darkSecondaryText = Color(0xFFB0B0B0);
-  static const Color darkMutedText = Color(0xFF6B6B6B);
+  static const Color darkBg = Color(0xFF0F0F0F); // Darker background for better contrast
+  static const Color darkSurface = Color(0xFF1E1E1E); // Lighter surface for better contrast
+  static const Color darkSecondarySurface = Color(0xFF2D2D2D); // Even lighter for hierarchy
+  static const Color darkPrimaryText = Color(0xFFFFFFFF); // Pure white for maximum contrast
+  static const Color darkSecondaryText = Color(0xFFE0E0E0); // Light gray for secondary text
+  static const Color darkMutedText = Color(0xFFA0A0A0); // Medium gray for muted text
 
-  // Light mode - "Iceberg White"
+  // Light mode - "Iceberg White" with enhanced visibility
   static const Color lightBg = Color(0xFFFFFFFF);
   static const Color lightSurface = Color(0xFFF8FAFC);
   static const Color lightSecondarySurface = Color(0xFFF1F5F9);
@@ -51,7 +51,7 @@ class AppColors {
   static const Color accentPurple = Color(0xFF8B5CF6);
   static const Color accentPink = Color(0xFFF472B6);
 
-  // Mode-aware getters
+  // Mode-aware getters with enhanced contrast
   static Color bg(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark ? darkBg : lightBg;
 
@@ -84,36 +84,52 @@ class AppColors {
 
   static Color borderColor(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark
-          ? darkSecondarySurface.withOpacity(0.5)
+          ? darkSecondarySurface.withOpacity(0.7) // Higher opacity for better visibility
           : lightSecondarySurface.withOpacity(0.5);
 
   static Color shadowColor(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark
-          ? Colors.black.withOpacity(0.6)
-          : const Color(0xFF0F172A).withOpacity(0.06);
+          ? Colors.black.withOpacity(0.8) // Darker shadows for dark mode
+          : const Color(0xFF0F172A).withOpacity(0.08);
 
   static Color dividerColor(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark
-          ? darkSecondarySurface.withOpacity(0.3)
+          ? darkSecondarySurface.withOpacity(0.5) // More visible dividers
           : lightSecondarySurface.withOpacity(0.4);
 
   static Color disabledColor(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark
-          ? darkMutedText.withOpacity(0.4)
-          : lightMutedText.withOpacity(0.4);
+          ? darkMutedText.withOpacity(0.6) // More visible disabled state
+          : lightMutedText.withOpacity(0.5);
 
   static Color focusColor(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark
-          ? primaryBlue.withOpacity(0.2)
-          : primaryBlue.withOpacity(0.12);
+          ? primaryBlue.withOpacity(0.3) // Stronger focus in dark mode
+          : primaryBlue.withOpacity(0.15);
 
   static Color hoverColor(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark
-          ? Colors.white.withOpacity(0.04)
-          : Colors.black.withOpacity(0.02);
+          ? Colors.white.withOpacity(0.08) // More visible hover in dark mode
+          : Colors.black.withOpacity(0.04);
 
   static Color selectedColor(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark
-          ? primaryBlue.withOpacity(0.22)
-          : primaryBlue.withOpacity(0.14);
+          ? primaryBlue.withOpacity(0.3) // Stronger selection in dark mode
+          : primaryBlue.withOpacity(0.18);
+
+  // Enhanced getters for better dark mode visibility
+  static Color cardShadow(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.black.withOpacity(0.4) // Darker shadows for cards
+          : Colors.black.withOpacity(0.1);
+
+  static Color inputBorder(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? darkSecondarySurface.withOpacity(0.8) // Stronger input borders
+          : lightSecondarySurface.withOpacity(0.6);
+
+  static Color overlayBg(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? Colors.black.withOpacity(0.7) // Darker overlays
+          : Colors.black.withOpacity(0.3);
 }
