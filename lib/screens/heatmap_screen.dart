@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:no_screenshot/no_screenshot.dart';
+import 'package:geolocator/geolocator.dart';
 import '../theme/app_colors.dart';
 import '../services/fraud_data_service.dart';
 import '../services/heatmap_coordinates_service.dart';
 import '../models/fraud_data_model.dart';
 import 'fraud_analytics_screen.dart';
+import 'current_location_map_screen.dart';
 
 class HeatmapScreen extends StatefulWidget {
   const HeatmapScreen({super.key});
@@ -20,6 +22,90 @@ class _HeatmapScreenState extends State<HeatmapScreen> {
   List<FraudData> _fraudData = [];
   OverlayEntry? _tooltipOverlay;
   final GlobalKey _imageKey = GlobalKey();
+
+  // Method to get current location and navigate to map
+  Future<void> _getCurrentLocationAndNavigate() async {
+    try {
+      // Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Location services are disabled. Please enable them in settings.',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Check location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Location permissions are denied.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Location permissions are permanently denied, please enable them in app settings.',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      debugPrint(
+        'Current Location: Latitude: ${position.latitude}, Longitude: ${position.longitude}',
+      );
+
+      // Navigate to map screen
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CurrentLocationMapScreen(
+              latitude: position.latitude,
+              longitude: position.longitude,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error getting location: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error getting location: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -213,70 +299,44 @@ class _HeatmapScreenState extends State<HeatmapScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header Section
+              // Get Current Location Button
               Container(
                 margin: const EdgeInsets.all(20),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.surface(context),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppColors.secondarySurface(context).withOpacity(0.3),
-                    width: 1,
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _getCurrentLocationAndNavigate,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryBlue,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 24,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    shadowColor: AppColors.subtleBlueGlow,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.dangerRed.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.warning_rounded,
-                            color: AppColors.dangerRed,
-                            size: 24,
-                          ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Get Current Location",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Fraud Activity Heatmap",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryText(context),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "Real-time visualization of fraudulent activities across regions",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.secondaryText(context),
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
