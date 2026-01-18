@@ -134,29 +134,6 @@ A comprehensive Flutter application for secure financial transactions with advan
 
 ## 📁 Project Structure
 
-```dart
-lib/
-├── main.dart                 # App entry point
-├── theme/                   # App theming
-│   └── app_colors.dart      # Color definitions
-├── screens/                 # UI screens
-│   ├── splash_screen.dart
-│   ├── home_screen.dart
-│   ├── heatmap_screen.dart
-│   ├── current_location_map_screen.dart
-│   ├── trusted_contacts_screen.dart
-│   └── contact_detail_screen.dart
-├── services/               # Business logic
-│   ├── fraud_data_service.dart
-│   ├── heatmap_coordinates_service.dart
-│   └── notification_service.dart
-├── models/                 # Data models
-│   └── fraud_data_model.dart
-├── utils/                  # Utilities
-│   └── supabase_config.dart
-└── widgets/               # Reusable components
-```
-
 ## 🔐 Security Features
 
 ### Data Protection
@@ -171,29 +148,6 @@ lib/
 - **Anonymous Analytics** - Privacy-focused analytics
 - **GDPR Compliance** - Data protection regulations
 
-## 🚀 Deployment
-
-### Android Deployment
-1. **Generate signing key**
-   ```bash
-   keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
-   ```
-
-2. **Configure signing** in `android/app/build.gradle`
-
-3. **Build release APK**
-   ```bash
-   flutter build appbundle --release
-   ```
-
-### iOS Deployment
-1. **Configure Xcode** project settings
-2. **Set up provisioning profiles**
-3. **Build for App Store**
-   ```bash
-   flutter build ios --release
-   ```
-
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -207,10 +161,6 @@ lib/
 - Use meaningful variable names
 - Add comments for complex logic
 - Include unit tests for new features
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🐛 Troubleshooting
 
@@ -230,29 +180,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
    - Verify environment variables
    - Check network connectivity
    - Validate Supabase configuration
-
-### Debug Mode
-Enable debug logging by setting:
-```dart
-debugPrint('Debug message');
-```
-
-## 📞 Support
-
-For support and questions:
-- Create an issue on GitHub
-- Check the [documentation](docs/)
-- Review the [FAQ](docs/FAQ.md)
-
-## 🔄 Version History
-
-### v1.0.0 (Current)
-- Initial release
-- Basic fraud detection
-- Trusted contacts management
-- Location services
-- Biometric authentication
-
----
-
-**Built with ❤️ using Flutter**
