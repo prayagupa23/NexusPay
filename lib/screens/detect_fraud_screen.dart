@@ -451,7 +451,7 @@ class _DetectFraudScreenState extends State<DetectFraudScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://13.60.192.189:8000/analyze-text'),
+        Uri.parse('https://phishing-detection-model.onrender.com/analyze-text'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'text': text}),
       );
